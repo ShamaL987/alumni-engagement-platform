@@ -1,13 +1,9 @@
 const express = require('express');
 const app = express();
 
-require('dotenv').config();
-
 app.use(express.json());
 
-const authRoutes = require('./routes/authRoutes');
-app.use('/api/auth', authRoutes);
+const authRoutes = require('./routes/auth.routes');
+app.use('/auth', authRoutes);
 
-app.listen(process.env.PORT, () => {
-    console.log("Server started...");
-});
+module.exports = app;
