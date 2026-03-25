@@ -33,3 +33,5 @@ coverage/
 # Optional: lock files (keep if needed)
 # package-lock.json
 package-lock.json
+
+Dockerfile
