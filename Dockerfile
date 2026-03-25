@@ -1,4 +1,8 @@
-FROM ubuntu:latest
-LABEL authors="user"
+FROM mariadb:11
 
-ENTRYPOINT ["top", "-b"]
+ENV MARIADB_ROOT_PASSWORD=root123
+ENV MARIADB_DATABASE=alumni_platform
+ENV MARIADB_USER=appuser
+ENV MARIADB_PASSWORD=app123
+
+EXPOSE 3306

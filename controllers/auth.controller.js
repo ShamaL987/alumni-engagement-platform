@@ -2,6 +2,7 @@ const User = require('../models/user.model');
 const { hashPassword, comparePassword } = require('../utils/hash');
 const { generateToken } = require('../utils/jwt');
 const { addToBlacklist } = require('../utils/blacklist');
+const { sendEmail } = require('../services/email.service');
 const crypto = require('crypto');
 
 // 1. REGISTER
@@ -15,8 +16,20 @@ exports.register = async (req, res) => {
         }
 
         // 2. Strong password
+        if (!password) {
+            return res.status(400).json({ message: 'Password is required' });
+        }
+
         if (password.length < 6) {
-            return res.status(400).json({ message: 'Password too short' });
+            return res.status(400).json({ message: 'Password must be at least 6 characters' });
+        }
+
+        if (!/[A-Z]/.test(password)) {
+            return res.status(400).json({ message: 'Password must contain at least one uppercase letter' });
+        }
+
+        if (!/[0-9]/.test(password)) {
+            return res.status(400).json({ message: 'Password must contain at least one number' });
         }
 
         // 3. Check duplicate
@@ -35,8 +48,15 @@ exports.register = async (req, res) => {
         const user = await User.create({
             email,
             password: hashed,
-            verificationToken: token
+            verificationToken: token,
+            verificationTokenExpiry: new Date(Date.now() + 3600000) // 1 hour
         });
+
+        sendEmail(
+            email,
+            'Verify Email',
+            `Your verification token is: ${token}`
+        );
 
         res.json({
             message: 'Registered. Verify email.',
@@ -57,8 +77,13 @@ exports.verifyEmail = async (req, res) => {
 
         if (!user) return res.status(400).json({ message: 'Invalid token' });
 
+        if (!user || user.verificationTokenExpiry < new Date()) {
+            return res.status(400).json({ message: 'Token expired or invalid' });
+        }
+
         user.isVerified = true;
         user.verificationToken = null;
+        user.verificationTokenExpiry = null;
         await user.save();
 
         res.json({ message: 'Email verified' });
@@ -102,7 +127,14 @@ exports.forgotPassword = async (req, res) => {
 
     const token = crypto.randomBytes(32).toString('hex');
     user.resetToken = token;
+    user.resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour expiry
     await user.save();
+
+    sendEmail(
+        email,
+        'Reset Password',
+        `Your reset token is: ${token}`
+    );
 
     res.json({
         message: 'Reset token generated',
@@ -118,8 +150,13 @@ exports.resetPassword = async (req, res) => {
     const user = await User.findOne({ where: { resetToken: token } });
     if (!user) return res.status(400).json({ message: 'Invalid token' });
 
+    if (user.resetTokenExpiry < new Date()) {
+        return res.status(400).json({ message: 'Token expired' });
+    }
+
     user.password = await hashPassword(newPassword);
     user.resetToken = null;
+    user.resetTokenExpiry = null;
 
     await user.save();
 
