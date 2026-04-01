@@ -7,6 +7,12 @@ const Employment = sequelize.define('Employment', {
     role: DataTypes.STRING,
     startDate: DataTypes.DATE,
     endDate: DataTypes.DATE
-});
+},
+    {
+        indexes: [
+            { fields: ['userId'] }
+        ]
+    }
+);
 
 module.exports = Employment;
