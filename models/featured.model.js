@@ -1,17 +1,19 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
-const Degree = sequelize.define('Degree', {
+const Featured = sequelize.define('Featured', {
     userId: DataTypes.INTEGER,
-    title: DataTypes.STRING,
-    universityUrl: DataTypes.STRING,
-    completionDate: DataTypes.DATE
+    bidId: DataTypes.INTEGER,
+    date: {
+        type: DataTypes.DATEONLY
+    }
 },
     {
         indexes: [
+            { fields: ['date'] },
             { fields: ['userId'] }
         ]
     }
-    );
+);
 
-module.exports = Degree;
+module.exports = Featured;
