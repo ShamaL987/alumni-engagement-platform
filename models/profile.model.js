@@ -9,6 +9,12 @@ const Profile = sequelize.define('Profile', {
     bio: DataTypes.TEXT,
     linkedin: DataTypes.STRING,
     image: DataTypes.STRING
-});
+},
+    {
+        indexes: [
+            { fields: ['userId'] }
+        ]
+    }
+);
 
 module.exports = Profile;

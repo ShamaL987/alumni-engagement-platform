@@ -32,6 +32,12 @@ const User = sequelize.define('User', {
     resetTokenExpiry: {
         type: DataTypes.DATE
     }
-});
+},
+    {
+        indexes: [
+            {fields: ['email']}
+        ]
+    }
+);
 
 module.exports = User;
