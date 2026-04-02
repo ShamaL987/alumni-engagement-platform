@@ -1,20 +1,33 @@
+require('dotenv').config();
 const express = require('express');
-const app = express();
+const helmet = require('helmet');
+const cors = require('cors');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
+const authRoutes = require('./routes/auth.routes');
 const profileRoutes = require('./routes/profile.routes');
 const bidRoutes = require('./routes/bid.routes');
-const degreeRoutes = require('./routes/degree.routes');
-const certRoutes = require('./routes/certification.routes');
-const employmentRoutes = require('./routes/employment.routes');
+const publicRoutes = require('./routes/public.routes');
+const errorHandler = require('./middleware/error.middleware');
 
-app.use(express.json());
+const app = express();
 
-const authRoutes = require('./routes/auth.routes');
+app.use(helmet());
+app.use(cors({ origin: true, credentials: false }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static('uploads'));
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ success: true, message: 'Application is healthy' });
+});
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/auth', authRoutes);
-
 app.use('/profile', profileRoutes);
 app.use('/bids', bidRoutes);
-app.use('/degree', degreeRoutes);
-app.use('/certifications', certRoutes);
-app.use('/employment', employmentRoutes);
+app.use('/public', publicRoutes);
+
+app.use(errorHandler);
 
 module.exports = app;
