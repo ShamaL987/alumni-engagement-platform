@@ -1,31 +1,45 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
-const Bid = sequelize.define('Bid',
-    {
-        userId: {
-            type: DataTypes.INTEGER,
-            allowNull: false
-        },
-        amount: {
-            type: DataTypes.FLOAT,
-            allowNull: false
-        },
-        status: {
-            type: DataTypes.STRING,
-            defaultValue: 'pending'
-        },
-        isFeatured: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false
-        }
+const Bid = sequelize.define(
+  'bid',
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true
     },
-    {
-        indexes: [
-            { fields: ['userId'] },
-            { fields: ['amount'] }
-        ]
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    targetDate: {
+      type: DataTypes.DATEONLY,
+      allowNull: false
+    },
+    bidAmount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      validate: {
+        min: 0.01
+      }
+    },
+    status: {
+      type: DataTypes.ENUM('active', 'cancelled', 'won', 'lost'),
+      allowNull: false,
+      defaultValue: 'active'
+    },
+    selectedAt: {
+      type: DataTypes.DATE,
+      allowNull: true
     }
+  },
+  {
+    indexes: [
+      { fields: ['user_id', 'target_date'] },
+      { fields: ['target_date', 'status'] }
+    ]
+  }
 );
 
 module.exports = Bid;

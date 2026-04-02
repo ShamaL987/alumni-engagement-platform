@@ -1,43 +1,44 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
-const User = sequelize.define('User', {
+const User = sequelize.define(
+  'user',
+  {
     id: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true
     },
     email: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      unique: true,
+      validate: {
+        isEmail: true
+      }
     },
-    password: {
-        type: DataTypes.STRING,
-        allowNull: false
+    passwordHash: {
+      type: DataTypes.STRING(255),
+      allowNull: false
     },
-    isVerified: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
+    isEmailVerified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     },
-    verificationToken: {
-        type: DataTypes.STRING
+    tokenVersion: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     },
-    resetToken: {
-        type: DataTypes.STRING
-    },
-    verificationTokenExpiry: {
-        type: DataTypes.DATE
-    },
-    resetTokenExpiry: {
-        type: DataTypes.DATE
+    lastLoginAt: {
+      type: DataTypes.DATE,
+      allowNull: true
     }
-},
-    {
-        indexes: [
-            {fields: ['email']}
-        ]
-    }
+  },
+  {
+    indexes: [{ unique: true, fields: ['email'] }]
+  }
 );
 
 module.exports = User;
