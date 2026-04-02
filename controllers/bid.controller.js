@@ -1,87 +1,87 @@
-const Bid = require('../models/bid.model');
-const { Op } = require('sequelize');
-const { sendEmail } = require('../services/email.service');
+const bidService = require('../services/bid.service');
 
-// PLACE BID (Blind + Validation + Monthly Limit)
-exports.placeBid = async (req, res) => {
-    try {
-        const { amount } = req.body;
-
-        // ❌ validation
-        if (!amount || amount <= 0) {
-            return res.status(400).json({ message: 'Invalid bid amount' });
-        }
-
-        // ✅ monthly win count
-        const count = await Bid.count({
-            where: {
-                userId: req.user.id,
-                status: 'won',
-                createdAt: {
-                    [Op.gte]: new Date(new Date().setDate(1))
-                }
-            }
-        });
-
-        if (count >= 3) {
-            return res.status(400).json({
-                message: 'Monthly win limit reached',
-                remaining: 0
-            });
-        }
-
-        // ✅ place bid
-        const bid = await Bid.create({
-            userId: req.user.id,
-            amount
-        });
-
-        // ✅ email feedback
-        sendEmail(
-            req.user.email,
-            'Bid Placed',
-            `Your bid of ${amount} has been placed`
-        );
-
-        res.json({
-            message: 'Bid placed successfully',
-            remaining: 3 - count
-        });
-
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+const placeBid = async (req, res, next) => {
+  try {
+    const result = await bidService.placeBid(req.user.id, req.body);
+    res.status(201).json({
+      success: true,
+      message: 'Bid placed successfully.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-// UPDATE BID (increase only)
-exports.updateBid = async (req, res) => {
-    const { amount } = req.body;
-
-    const bid = await Bid.findOne({ where: { userId: req.user.id } });
-
-    if (!bid) return res.status(404).json({ message: 'No bid found' });
-
-    if (amount <= bid.amount) {
-        return res.status(400).json({
-            message: 'You can only increase your bid'
-        });
-    }
-
-    bid.amount = amount;
-    await bid.save();
-
-    res.json({ message: 'Bid updated', bid });
+const updateBid = async (req, res, next) => {
+  try {
+    const result = await bidService.updateBid(req.user.id, req.params.bidId, req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Bid updated successfully.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-// STATUS (Blind feedback)
-exports.getBidStatus = async (req, res) => {
-    const highestBid = await Bid.max('amount');
+const cancelBid = async (req, res, next) => {
+  try {
+    await bidService.cancelBid(req.user.id, req.params.bidId);
+    res.status(200).json({
+      success: true,
+      message: 'Bid cancelled successfully.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    const userBid = await Bid.findOne({ where: { userId: req.user.id } });
 
-    if (!userBid) return res.status(404).json({ message: 'No bid found' });
+const processSelection = async (req, res, next) => {
+  try {
+    const targetDate = req.body.targetDate || new Date().toISOString().slice(0, 10);
+    const winner = await bidService.processWinnerSelectionForDate(targetDate);
+    res.status(200).json({
+      success: true,
+      message: 'Winner selection processed.',
+      data: winner
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    const status = userBid.amount === highestBid ? 'winning' : 'losing';
+const listOwnBids = async (req, res, next) => {
+  try {
+    const result = await bidService.listOwnBids(req.user.id);
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    res.json({ status });
+const getMyBidStatusForDate = async (req, res, next) => {
+  try {
+    const result = await bidService.getMyBidStatusForDate(req.user.id, req.query.targetDate);
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  placeBid,
+  updateBid,
+  cancelBid,
+  listOwnBids,
+  getMyBidStatusForDate,
+  processSelection
 };

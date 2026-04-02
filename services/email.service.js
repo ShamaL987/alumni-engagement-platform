@@ -1,8 +1,8 @@
-exports.sendEmail = (email, subject, message) => {
-    console.log(`
-    📧 Sending Email:
-    To: ${email}
-    Subject: ${subject}
-    Message: ${message}
-    `);
+const sendEmail = async ({ to, subject, text }) => {
+  console.log('Email dispatch simulation:', { to, subject, text });
+  return true;
+};
+
+module.exports = {
+  sendEmail
 };
