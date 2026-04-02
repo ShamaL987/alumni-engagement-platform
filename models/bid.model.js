@@ -13,8 +13,8 @@ const Bid = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false
     },
-    targetDate: {
-      type: DataTypes.DATEONLY,
+    cycleId: {
+      type: DataTypes.INTEGER,
       allowNull: false
     },
     bidAmount: {
@@ -36,8 +36,9 @@ const Bid = sequelize.define(
   },
   {
     indexes: [
-      { fields: ['user_id', 'target_date'] },
-      { fields: ['target_date', 'status'] }
+      { unique: true, fields: ['user_id', 'cycle_id'] },
+      { fields: ['cycle_id', 'status', 'bid_amount'] },
+      { fields: ['user_id', 'created_at'] }
     ]
   }
 );
