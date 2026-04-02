@@ -1,0 +1,1236 @@
+{
+  "info": {
+    "_postman_id": "be8525f0-5cdd-4cda-ade1-b3806930f38c",
+    "name": "Alumni Bidding Scenario - 2 user bidding",
+    "description": "Scenario collection for two-user bidding flow: register two accounts, verify emails, login, create two profiles, place bids, check blind status, rebid, process cycle, and inspect result.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "33332897",
+    "_collection_link": "https://go.postman.co/collection/33332897-be8525f0-5cdd-4cda-ade1-b3806930f38c?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "00 - Setup Two Users",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health is 200', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/health",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register User A",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('scenarioSeed')) {",
+                  "  pm.environment.set('scenarioSeed', Date.now().toString());",
+                  "  pm.environment.set('userAEmail', `scenario.usera.${pm.environment.get('scenarioSeed')}@westminster.ac.uk`);",
+                  "  pm.environment.set('userBEmail', `scenario.userb.${pm.environment.get('scenarioSeed')}@westminster.ac.uk`);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User A registered', function(){ pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userAVerificationToken', json?.data?.verificationToken || '');",
+                  "pm.environment.set('userAId', String(json?.data?.user?.id || ''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userAEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/auth/register",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify User A Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User A email verified', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/auth/verify-email?token={{userAVerificationToken}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "auth",
+                "verify-email"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{userAVerificationToken}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User A logged in', function(){ pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userAToken', json?.data?.accessToken || '');",
+                  "pm.environment.set('userAId', String(json?.data?.user?.id || pm.environment.get('userAId') || ''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userAEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/auth/login",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register User B",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('scenarioSeed')) {",
+                  "  pm.environment.set('scenarioSeed', Date.now().toString());",
+                  "  pm.environment.set('userAEmail', `scenario.usera.${pm.environment.get('scenarioSeed')}@westminster.ac.uk`);",
+                  "  pm.environment.set('userBEmail', `scenario.userb.${pm.environment.get('scenarioSeed')}@westminster.ac.uk`);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User B registered', function(){ pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userBVerificationToken', json?.data?.verificationToken || '');",
+                  "pm.environment.set('userBId', String(json?.data?.user?.id || ''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userBEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/auth/register",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify User B Email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User B email verified', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/auth/verify-email?token={{userBVerificationToken}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "auth",
+                "verify-email"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{userBVerificationToken}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User B",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User B logged in', function(){ pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userBToken', json?.data?.accessToken || '');",
+                  "pm.environment.set('userBId', String(json?.data?.user?.id || pm.environment.get('userBId') || ''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userBEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/auth/login",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10 - Create Two Profiles",
+      "item": [
+        {
+          "name": "Create Profile User A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profile A created', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullName",
+                  "type": "text",
+                  "value": "John Doe"
+                },
+                {
+                  "key": "biography",
+                  "type": "text",
+                  "value": "Software engineer and alumnus mentor."
+                },
+                {
+                  "key": "linkedInUrl",
+                  "type": "text",
+                  "value": "https://www.linkedin.com/in/johndoe"
+                },
+                {
+                  "key": "degrees",
+                  "type": "text",
+                  "value": "[{\"degreeName\": \"BSc Software Engineering\", \"degreeUrl\": \"https://www.westminster.ac.uk\"}]"
+                },
+                {
+                  "key": "certifications",
+                  "type": "text",
+                  "value": "[{\"certificationName\": \"AWS Cloud Practitioner\", \"courseUrl\": \"https://aws.amazon.com/certification/\"}]"
+                },
+                {
+                  "key": "licences",
+                  "type": "text",
+                  "value": "[{\"licenceName\": \"Professional Membership\", \"awardingBodyUrl\": \"https://www.bcs.org/\"}]"
+                },
+                {
+                  "key": "shortCourses",
+                  "type": "text",
+                  "value": "[{\"courseName\": \"Agile Foundations\", \"courseUrl\": \"https://www.coursera.org/\"}]"
+                },
+                {
+                  "key": "employmentHistory",
+                  "type": "text",
+                  "value": "[{\"company\": \"Creative Software\", \"jobTitle\": \"Software Engineer\", \"startDate\": \"2024-01-01\", \"endDate\": null}]"
+                },
+                {
+                  "key": "monthlyEventBonusCount",
+                  "type": "text",
+                  "value": "1"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/profile",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "profile"
+              ]
+            },
+            "description": "Uses multipart/form-data with JSON-string text fields. Add optional profileImage manually if needed."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Profile User B",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profile B created', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userBToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullName",
+                  "type": "text",
+                  "value": "Jane Smith"
+                },
+                {
+                  "key": "biography",
+                  "type": "text",
+                  "value": "Cloud consultant and alumni speaker."
+                },
+                {
+                  "key": "linkedInUrl",
+                  "type": "text",
+                  "value": "https://www.linkedin.com/in/janesmith"
+                },
+                {
+                  "key": "degrees",
+                  "type": "text",
+                  "value": "[{\"degreeName\": \"BSc Computer Science\", \"degreeUrl\": \"https://www.westminster.ac.uk\"}]"
+                },
+                {
+                  "key": "certifications",
+                  "type": "text",
+                  "value": "[{\"certificationName\": \"Microsoft Azure Fundamentals\", \"courseUrl\": \"https://learn.microsoft.com/credentials/\"}]"
+                },
+                {
+                  "key": "licences",
+                  "type": "text",
+                  "value": "[{\"licenceName\": \"Chartered IT Professional\", \"awardingBodyUrl\": \"https://www.bcs.org/\"}]"
+                },
+                {
+                  "key": "shortCourses",
+                  "type": "text",
+                  "value": "[{\"courseName\": \"Leadership Essentials\", \"courseUrl\": \"https://www.coursera.org/\"}]"
+                },
+                {
+                  "key": "employmentHistory",
+                  "type": "text",
+                  "value": "[{\"company\": \"Tech Corp\", \"jobTitle\": \"Cloud Consultant\", \"startDate\": \"2023-06-01\", \"endDate\": null}]"
+                },
+                {
+                  "key": "monthlyEventBonusCount",
+                  "type": "text",
+                  "value": "0"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/profile",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "profile"
+              ]
+            },
+            "description": "Uses multipart/form-data with JSON-string text fields. Add optional profileImage manually if needed."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile User A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profile A fetched', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/profile/me",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "profile",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile User B",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Profile B fetched', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userBToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/profile/me",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "profile",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "20 - Bidding Scenario",
+      "item": [
+        {
+          "name": "User A - Get Current Cycle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Current cycle fetched', function(){ pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "const cycleId = json?.data?.id || json?.data?.cycle?.id || '';",
+                  "if (cycleId) pm.environment.set('currentCycleId', String(cycleId));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/current-cycle",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "current-cycle"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User A - Place Initial Bid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User A bid placed', function(){ pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userABidId', String(json?.data?.bid?.id || json?.data?.id || ''));",
+                  "pm.environment.set('userABidStatus', json?.data?.blindStatus || json?.data?.status || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidAmount\": \"{{userAInitialBidAmount}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B - Place Initial Bid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User B bid placed', function(){ pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userBBidId', String(json?.data?.bid?.id || json?.data?.id || ''));",
+                  "pm.environment.set('userBBidStatus', json?.data?.blindStatus || json?.data?.status || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userBToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidAmount\": \"{{userBInitialBidAmount}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User A - Check Current Blind Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User A status fetched', function(){ pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userABidStatus', json?.data?.blindStatus || json?.data?.status || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/status",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User A - Rebid (Increase Existing Bid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User A rebid succeeded', function(){ pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userABidStatus', json?.data?.blindStatus || json?.data?.status || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidAmount\": \"{{userARebidAmount}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/{{userABidId}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "{{userABidId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B - Check Current Blind Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User B status fetched', function(){ pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userBBidStatus', json?.data?.blindStatus || json?.data?.status || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userBToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/status",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B - Rebid (Increase Existing Bid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User B rebid succeeded', function(){ pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('userBBidStatus', json?.data?.blindStatus || json?.data?.status || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userBToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bidAmount\": \"{{userBRebidAmount}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/{{userBBidId}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "{{userBBidId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User A - Check Final Blind Status Before Processing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User A final blind status fetched', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/status",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B - Check Final Blind Status Before Processing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User B final blind status fetched', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userBToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/status",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Process Current Cycle Manually (Local Demo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Current cycle processed', function(){ pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "const cycle = json?.data || {};",
+                  "if (cycle?.id) pm.environment.set('processedCycleId', String(cycle.id));",
+                  "if (cycle?.winnerBidId) pm.environment.set('winnerBidId', String(cycle.winnerBidId));",
+                  "if (cycle?.winnerUserId) pm.environment.set('winnerUserId', String(cycle.winnerUserId));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/process-current-cycle",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "process-current-cycle"
+              ]
+            },
+            "description": "Requires ENABLE_MANUAL_CYCLE_PROCESSING=true locally."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "30 - Final Result & History",
+      "item": [
+        {
+          "name": "Get Processed Cycle Detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Processed cycle detail fetched', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/cycles/{{processedCycleId}}",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "cycles",
+                "{{processedCycleId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User A - List Own Bids",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User A bid history fetched', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/me",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B - List Own Bids",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User B bid history fetched', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userBToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/me",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Cycle History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cycle history fetched', function(){ pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/bids/cycles/history",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "bids",
+                "cycles",
+                "history"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Today's Featured Alumnus",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Featured endpoint responds', function(){ pm.expect([200,404]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{protocol}}://{{host}}:{{port}}/public/featured/today",
+              "protocol": "{{protocol}}",
+              "host": [
+                "{{host}}"
+              ],
+              "port": "{{port}}",
+              "path": [
+                "public",
+                "featured",
+                "today"
+              ]
+            },
+            "description": "May return 404 immediately after processing because the winner is featured on the following day."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
