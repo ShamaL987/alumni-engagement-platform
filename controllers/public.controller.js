@@ -3,21 +3,21 @@ const { getFeaturedAlumnusForDate } = require('../services/bid.service');
 const getTodaysFeaturedAlumnus = async (req, res, next) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const featured = await getFeaturedAlumnusForDate(today);
+    const featuredCycle = await getFeaturedAlumnusForDate(today);
 
-    if (!featured) {
+    if (!featuredCycle || !featuredCycle.winnerUser) {
       return res.status(404).json({
         success: false,
         message: 'No featured alumnus found for today.'
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: featured
+      data: featuredCycle
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 

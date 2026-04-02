@@ -42,18 +42,59 @@ CREATE TABLE IF NOT EXISTS profile (
   CONSTRAINT fk_profile_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS bidding_cycle (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  start_time DATETIME NOT NULL,
+  end_time DATETIME NOT NULL,
+  featured_date DATE NOT NULL,
+  status ENUM('active', 'processing', 'processed') NOT NULL DEFAULT 'active',
+  winner_bid_id INT NULL,
+  winner_user_id INT NULL,
+  processed_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_bidding_cycle_status_end_time (status, end_time),
+  INDEX idx_bidding_cycle_featured_date (featured_date),
+  INDEX idx_bidding_cycle_winner_user (winner_user_id),
+  CONSTRAINT fk_bidding_cycle_winner_user FOREIGN KEY (winner_user_id) REFERENCES user(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS bid (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
-  target_date DATE NOT NULL,
+  cycle_id INT NOT NULL,
   bid_amount DECIMAL(10, 2) NOT NULL,
   status ENUM('active', 'cancelled', 'won', 'lost') NOT NULL DEFAULT 'active',
   selected_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_bid_user_date (user_id, target_date),
-  INDEX idx_bid_target_status (target_date, status),
-  CONSTRAINT fk_bid_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+  CONSTRAINT uq_bid_user_cycle UNIQUE (user_id, cycle_id),
+  INDEX idx_bid_cycle_status_amount (cycle_id, status, bid_amount),
+  INDEX idx_bid_user_created_at (user_id, created_at),
+  CONSTRAINT fk_bid_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
+  CONSTRAINT fk_bid_cycle FOREIGN KEY (cycle_id) REFERENCES bidding_cycle(id) ON DELETE CASCADE
+);
+
+ALTER TABLE bidding_cycle
+  ADD CONSTRAINT fk_bidding_cycle_winner_bid FOREIGN KEY (winner_bid_id) REFERENCES bid(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS bid_history (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  cycle_id INT NOT NULL,
+  bid_id INT NULL,
+  user_id INT NULL,
+  action ENUM('created', 'increased', 'cancelled', 'won', 'lost', 'cycle_processed_no_winner') NOT NULL,
+  previous_amount DECIMAL(10, 2) NULL,
+  new_amount DECIMAL(10, 2) NULL,
+  note VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_bid_history_cycle_created_at (cycle_id, created_at),
+  INDEX idx_bid_history_bid (bid_id),
+  INDEX idx_bid_history_user (user_id),
+  CONSTRAINT fk_bid_history_cycle FOREIGN KEY (cycle_id) REFERENCES bidding_cycle(id) ON DELETE CASCADE,
+  CONSTRAINT fk_bid_history_bid FOREIGN KEY (bid_id) REFERENCES bid(id) ON DELETE SET NULL,
+  CONSTRAINT fk_bid_history_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS request_log (

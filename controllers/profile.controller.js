@@ -2,26 +2,15 @@ const profileService = require('../services/profile.service');
 
 const parsePayload = (body) => {
   const parsed = { ...body };
-
-  const jsonFields = [
-    "degrees",
-    "certifications",
-    "licences",
-    "shortCourses",
-    "employmentHistory"
-  ];
+  const jsonFields = ['degrees', 'certifications', 'licences', 'shortCourses', 'employmentHistory'];
 
   for (const field of jsonFields) {
-    if (typeof parsed[field] === "string") {
-      try {
-        parsed[field] = JSON.parse(parsed[field]);
-      } catch (error) {
-        parsed[field] = [];
-      }
+    if (typeof parsed[field] === 'string') {
+      parsed[field] = JSON.parse(parsed[field]);
     }
   }
 
-  if (parsed.monthlyEventBonusCount !== undefined) {
+  if (typeof parsed.monthlyEventBonusCount === 'string') {
     parsed.monthlyEventBonusCount = Number(parsed.monthlyEventBonusCount);
   }
 
@@ -43,21 +32,15 @@ const getMyProfile = async (req, res, next) => {
 
 const createOrReplaceProfile = async (req, res, next) => {
   try {
-    const payload = parsePayload(req.body);
-
-    if (req.file) {
-      payload.profileImagePath = `/uploads/${req.file.filename}`;
-    }
-
-    const profile = await profileService.createOrReplaceProfile(req.user.id, payload);
-
-    return res.status(200).json({
+    const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+    const profile = await profileService.createOrReplaceProfile(req.user.id, parsePayload(req.body), imagePath);
+    res.status(200).json({
       success: true,
-      message: "Profile saved successfully.",
+      message: 'Profile saved successfully.',
       data: profile
     });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
