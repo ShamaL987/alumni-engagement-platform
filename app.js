@@ -9,6 +9,7 @@ const profileRoutes = require('./routes/profile.routes');
 const bidRoutes = require('./routes/bid.routes');
 const publicRoutes = require('./routes/public.routes');
 const errorHandler = require('./middleware/error.middleware');
+const requestLogger = require("./middleware/requestLogger.middleware");
 
 const app = express();
 
@@ -17,6 +18,8 @@ app.use(cors({ origin: true, credentials: false }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
+app.use(requestLogger);
+
 
 app.get('/health', (req, res) => {
   res.status(200).json({ success: true, message: 'Application is healthy' });
