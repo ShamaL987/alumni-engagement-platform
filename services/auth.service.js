@@ -218,6 +218,22 @@ const logout = async (userId) => {
   return true;
 };
 
+const deleteAccount = async (userId) => {
+  const user = await User.findByPk(userId);
+
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  await Profile.destroy({
+    where: { userId }
+  });
+
+  await user.destroy();
+};
+
 module.exports = {
   register,
   verifyEmail,
@@ -225,5 +241,6 @@ module.exports = {
   verifyCurrentToken,
   forgotPassword,
   resetPassword,
-  logout
+  logout,
+  deleteAccount
 };

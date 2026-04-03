@@ -7,15 +7,11 @@ const MANUAL_CYCLE_PROCESSING_ENABLED = process.env.ENABLE_MANUAL_CYCLE_PROCESSI
 
 const toDateOnly = (date) => date.toISOString().slice(0, 10);
 
-const getNextCycleEndTime = (referenceDate = new Date()) => {
-  const cycleEndTime = new Date(referenceDate);
-  cycleEndTime.setHours(CYCLE_CLOSE_HOUR, 0, 0, 0);
-
-  if (referenceDate >= cycleEndTime) {
-    cycleEndTime.setDate(cycleEndTime.getDate() + 1);
-  }
-
-  return cycleEndTime;
+const getNextCycleEndTime = (startTime = new Date()) => {
+  const endTime = new Date(startTime);
+  endTime.setDate(endTime.getDate() + 1);
+  endTime.setHours(CYCLE_CLOSE_HOUR, 0, 0, 0);
+  return endTime;
 };
 
 const getFeaturedDateForCycleEnd = (cycleEndTime) => {
