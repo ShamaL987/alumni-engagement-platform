@@ -58,17 +58,20 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
+const authService = require('../services/auth.service');
+
 const deleteProfile = async (req, res, next) => {
   try {
-    await profileService.deleteProfile(req.user.id);
+    await authService.deleteAccount(req.user.id);
     res.status(200).json({
       success: true,
-      message: 'Profile deleted successfully.'
+      message: 'Account and profile deleted successfully.'
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 module.exports = {
   getMyProfile,
