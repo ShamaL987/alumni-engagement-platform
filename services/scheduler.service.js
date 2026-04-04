@@ -1,13 +1,23 @@
 const cron = require('node-cron');
 const { ensureActiveCycle, processDueCycles } = require('./bid.service');
 
-const startScheduler = async () => {
-  await ensureActiveCycle();
+let isCycleJobRunning = false;
 
+const startScheduler = () => {
   cron.schedule('* * * * *', async () => {
+    if (isCycleJobRunning) {
+      return;
+    }
+
+    isCycleJobRunning = true;
+
     try {
+      await ensureActiveCycle();
       await processDueCycles();
     } catch (error) {
+      console.error('Scheduler error:', error.message);
+    } finally {
+      isCycleJobRunning = false;
     }
   });
 };

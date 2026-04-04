@@ -130,6 +130,7 @@ const createHistoryEntry = async (payload, transaction) => {
 };
 
 const ensureActiveCycle = async () => {
+  console.log('Checking for active cycle');
   await processDueCycles();
 
   const currentActiveCycle = await BiddingCycle.findOne({
@@ -783,6 +784,7 @@ const processCurrentCycle = async () => {
     error.statusCode = 403;
     throw error;
   }
+  console.log('Manual cycle processing enabled. Processing current cycle...');
 
   const activeCycle = await ensureActiveCycle();
   const processedCycle = await processCycleById(activeCycle.id, { force: true });

@@ -17,7 +17,7 @@ const startServer = async () => {
     } catch (mailError) {
       console.warn('Mail transport verification failed:', mailError.message);
     }
-    startScheduler();
+    await startScheduler();
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
     });
