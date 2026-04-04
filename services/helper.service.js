@@ -1,0 +1,10 @@
+const EMAIL_VERIFICATION_TOKEN_TYPE =
+    process.env.EMAIL_VERIFICATION_TOKEN_TYPE || 'email_verification';
+
+const PASSWORD_RESET_TOKEN_TYPE =
+    process.env.PASSWORD_RESET_TOKEN_TYPE || 'password_reset';
+
+const TOKEN_EXPIRY_MINUTES =
+    Number(process.env.TOKEN_EXPIRY_MINUTES || 60);
+
+module.exports = { EMAIL_VERIFICATION_TOKEN_TYPE, PASSWORD_RESET_TOKEN_TYPE, TOKEN_EXPIRY_MINUTES };
