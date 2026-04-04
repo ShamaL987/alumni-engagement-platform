@@ -10,7 +10,7 @@ const {
 const CYCLE_CLOSE_HOUR = Number(process.env.BIDDING_CLOSE_HOUR || 18);
 const MANUAL_CYCLE_PROCESSING_ENABLED = process.env.ENABLE_MANUAL_CYCLE_PROCESSING !== 'false';
 
-const BASE_MONTHLY_BID_LIMIT = 3;
+const BASE_BID_SLOT_LIMIT = 3;
 const BASE_MONTHLY_WIN_LIMIT = 3;
 const MAX_EVENT_BONUS = 1;
 
@@ -41,12 +41,12 @@ const getMonthRange = (date) => {
   return { start, end };
 };
 
-const getAllowedMonthlyBidSlots = async (userId) => {
+const getAllowedBidSlots = async (userId) => {
   const profile = await Profile.findOne({ where: { userId } });
   const monthlyEventBonusCount = profile ? Number(profile.monthlyEventBonusCount || 0) : 0;
   const eventBonus = Math.min(monthlyEventBonusCount, MAX_EVENT_BONUS);
 
-  return BASE_MONTHLY_BID_LIMIT + eventBonus;
+  return BASE_BID_SLOT_LIMIT + eventBonus;
 };
 
 const getAllowedMonthlyWinSlots = async () => {
@@ -62,32 +62,6 @@ const getWinCountForFeaturedMonth = async (userId, featuredDate, transaction) =>
       status: 'processed',
       featuredDate: {
         [Op.between]: [start, end]
-      }
-    },
-    transaction
-  });
-};
-
-const getBidCountForFeaturedMonth = async (userId, featuredDate, transaction) => {
-  const { start, end } = getMonthRange(featuredDate);
-
-  return Bid.count({
-    include: [
-      {
-        model: BiddingCycle,
-        as: 'cycle',
-        required: true,
-        where: {
-          featuredDate: {
-            [Op.between]: [start, end]
-          }
-        }
-      }
-    ],
-    where: {
-      userId,
-      status: {
-        [Op.ne]: 'cancelled'
       }
     },
     transaction
@@ -112,27 +86,6 @@ const ensureMonthlyWinEligibilityForCycle = async (userId, cycle, transaction) =
     allowedWinSlots,
     currentWins,
     remainingWinSlots: allowedWinSlots - currentWins
-  };
-};
-
-const ensureMonthlyBidEligibilityForCycle = async (userId, cycle, transaction) => {
-  const allowedBidSlots = await getAllowedMonthlyBidSlots(userId);
-  const currentBids = await getBidCountForFeaturedMonth(
-      userId,
-      cycle.featuredDate,
-      transaction
-  );
-
-  if (currentBids >= allowedBidSlots) {
-    const error = new Error('Monthly bidding limit reached');
-    error.statusCode = 400;
-    throw error;
-  }
-
-  return {
-    allowedBidSlots,
-    currentBids,
-    remainingBidSlots: allowedBidSlots - currentBids
   };
 };
 
@@ -253,11 +206,7 @@ const placeBid = async (userId, { bidAmount }) => {
             transaction
         );
 
-        const bidEligibility = await ensureMonthlyBidEligibilityForCycle(
-            userId,
-            lockedCycle,
-            transaction
-        );
+        const allowedBidSlots = await getAllowedBidSlots(userId);
 
         const existingBid = await Bid.findOne({
           where: {
@@ -279,7 +228,8 @@ const placeBid = async (userId, { bidAmount }) => {
               userId,
               cycleId: lockedCycle.id,
               bidAmount: Number(bidAmount),
-              status: 'active'
+              status: 'active',
+              bidAttemptCount: 1
             },
             { transaction }
         );
@@ -303,11 +253,11 @@ const placeBid = async (userId, { bidAmount }) => {
           cycle: lockedCycle,
           bid,
           feedback,
-          allowedBidSlots: bidEligibility.allowedBidSlots,
+          allowedBidSlots,
           allowedWinSlots: winEligibility.allowedWinSlots,
-          currentBids: bidEligibility.currentBids + 1,
+          currentBids: bid.bidAttemptCount,
           currentWins: winEligibility.currentWins,
-          remainingBidSlots: bidEligibility.remainingBidSlots - 1,
+          remainingBidSlots: Math.max(allowedBidSlots - bid.bidAttemptCount, 0),
           remainingWinSlots: winEligibility.remainingWinSlots,
           emailData: {
             cycleId: lockedCycle.id,
@@ -392,16 +342,19 @@ const updateBid = async (userId, bidId, { bidAmount }) => {
           throw error;
         }
 
-        const currentBids = await getBidCountForFeaturedMonth(
-            userId,
-            bid.cycle.featuredDate,
-            transaction
-        );
+        const allowedBidSlots = await getAllowedBidSlots(userId);
+        const currentAttemptCount = Number(bid.bidAttemptCount || 1);
 
-        const allowedBidSlots = await getAllowedMonthlyBidSlots(userId);
+        if (currentAttemptCount >= allowedBidSlots) {
+          const error = new Error('No remaining bid update slots for this cycle');
+          error.statusCode = 400;
+          throw error;
+        }
 
         const previousAmount = Number(bid.bidAmount);
+
         bid.bidAmount = Number(bidAmount);
+        bid.bidAttemptCount = currentAttemptCount + 1;
         await bid.save({ transaction });
 
         await createHistoryEntry(
@@ -425,9 +378,9 @@ const updateBid = async (userId, bidId, { bidAmount }) => {
           feedback,
           allowedBidSlots,
           allowedWinSlots: winEligibility.allowedWinSlots,
-          currentBids,
+          currentBids: bid.bidAttemptCount,
           currentWins: winEligibility.currentWins,
-          remainingBidSlots: allowedBidSlots - currentBids,
+          remainingBidSlots: Math.max(allowedBidSlots - bid.bidAttemptCount, 0),
           remainingWinSlots: winEligibility.remainingWinSlots,
           emailData: {
             previousAmount,
@@ -534,16 +487,17 @@ const listOwnBids = async (userId) => {
 
 const getMyCurrentBidStatus = async (userId) => {
   const activeCycle = await ensureActiveCycle();
+
   const bid = await Bid.findOne({
     where: { userId, cycleId: activeCycle.id },
     include: [{ model: BiddingCycle, as: 'cycle' }]
   });
 
-  const allowedBidSlots = await getAllowedMonthlyBidSlots(userId);
+  const allowedBidSlots = await getAllowedBidSlots(userId);
   const allowedWinSlots = await getAllowedMonthlyWinSlots();
-  const currentBids = await getBidCountForFeaturedMonth(userId, activeCycle.featuredDate);
   const currentWins = await getWinCountForFeaturedMonth(userId, activeCycle.featuredDate);
 
+  const currentBids = bid ? Number(bid.bidAttemptCount || 1) : 0;
   return {
     cycle: activeCycle,
     bid,

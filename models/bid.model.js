@@ -17,6 +17,11 @@ const Bid = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false
     },
+    bidAttemptCount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
     bidAmount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
