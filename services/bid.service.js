@@ -1,10 +1,18 @@
 const { Op, Transaction } = require('sequelize');
 const sequelize = require('../config/db');
 const { Bid, BidHistory, BiddingCycle, Profile, User } = require('../models');
-const {sendWinnerSelectedEmail, sendBidUpdatedEmail, sendBidPlacedEmail} = require("./mail.service");
+const {
+  sendWinnerSelectedEmail,
+  sendBidUpdatedEmail,
+  sendBidPlacedEmail
+} = require('./mail.service');
 
 const CYCLE_CLOSE_HOUR = Number(process.env.BIDDING_CLOSE_HOUR || 18);
 const MANUAL_CYCLE_PROCESSING_ENABLED = process.env.ENABLE_MANUAL_CYCLE_PROCESSING !== 'false';
+
+const BASE_MONTHLY_BID_LIMIT = 3;
+const BASE_MONTHLY_WIN_LIMIT = 3;
+const MAX_EVENT_BONUS = 1;
 
 const toDateOnly = (date) => date.toISOString().slice(0, 10);
 
@@ -21,21 +29,28 @@ const getFeaturedDateForCycleEnd = (cycleEndTime) => {
   return toDateOnly(featuredDate);
 };
 
-const getMonthRange = (dateString) => {
-  const date = new Date(`${dateString}T00:00:00`);
-  const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-  const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+const getMonthRange = (date) => {
+  const baseDate = new Date(date);
 
-  return {
-    start: toDateOnly(startOfMonth),
-    end: toDateOnly(endOfMonth)
-  };
+  const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
 };
 
-const getAllowedWinsForFeaturedMonth = async (userId) => {
+const getAllowedMonthlyBidSlots = async (userId) => {
   const profile = await Profile.findOne({ where: { userId } });
-  const eventBonusCount = profile ? Math.min(Number(profile.monthlyEventBonusCount || 0), 1) : 0;
-  return 3 + eventBonusCount;
+  const monthlyEventBonusCount = profile ? Number(profile.monthlyEventBonusCount || 0) : 0;
+  const eventBonus = Math.min(monthlyEventBonusCount, MAX_EVENT_BONUS);
+
+  return BASE_MONTHLY_BID_LIMIT + eventBonus;
+};
+
+const getAllowedMonthlyWinSlots = async () => {
+  return BASE_MONTHLY_WIN_LIMIT;
 };
 
 const getWinCountForFeaturedMonth = async (userId, featuredDate, transaction) => {
@@ -53,20 +68,71 @@ const getWinCountForFeaturedMonth = async (userId, featuredDate, transaction) =>
   });
 };
 
-const ensureEligibleToBidForCycle = async (userId, cycle, transaction) => {
-  const allowedWins = await getAllowedWinsForFeaturedMonth(userId);
-  const currentWins = await getWinCountForFeaturedMonth(userId, cycle.featuredDate, transaction);
+const getBidCountForFeaturedMonth = async (userId, featuredDate, transaction) => {
+  const { start, end } = getMonthRange(featuredDate);
 
-  if (currentWins >= allowedWins) {
-    const error = new Error('Monthly featured limit reached for this alumnus');
+  return Bid.count({
+    include: [
+      {
+        model: BiddingCycle,
+        as: 'cycle',
+        required: true,
+        where: {
+          featuredDate: {
+            [Op.between]: [start, end]
+          }
+        }
+      }
+    ],
+    where: {
+      userId,
+      status: {
+        [Op.ne]: 'cancelled'
+      }
+    },
+    transaction
+  });
+};
+
+const ensureMonthlyWinEligibilityForCycle = async (userId, cycle, transaction) => {
+  const allowedWinSlots = await getAllowedMonthlyWinSlots();
+  const currentWins = await getWinCountForFeaturedMonth(
+      userId,
+      cycle.featuredDate,
+      transaction
+  );
+
+  if (currentWins >= allowedWinSlots) {
+    const error = new Error('Monthly Alumni of the Day win limit reached');
     error.statusCode = 400;
     throw error;
   }
 
   return {
-    allowedWins,
+    allowedWinSlots,
     currentWins,
-    remainingSlots: allowedWins - currentWins
+    remainingWinSlots: allowedWinSlots - currentWins
+  };
+};
+
+const ensureMonthlyBidEligibilityForCycle = async (userId, cycle, transaction) => {
+  const allowedBidSlots = await getAllowedMonthlyBidSlots(userId);
+  const currentBids = await getBidCountForFeaturedMonth(
+      userId,
+      cycle.featuredDate,
+      transaction
+  );
+
+  if (currentBids >= allowedBidSlots) {
+    const error = new Error('Monthly bidding limit reached');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    allowedBidSlots,
+    currentBids,
+    remainingBidSlots: allowedBidSlots - currentBids
   };
 };
 
@@ -104,6 +170,10 @@ const createCycle = async (startTime = new Date(), transaction) => {
       },
       { transaction }
   );
+};
+
+const createHistoryEntry = async (payload, transaction) => {
+  return BidHistory.create(payload, { transaction });
 };
 
 const ensureActiveCycle = async () => {
@@ -152,10 +222,6 @@ const getCurrentCycle = async () => {
   };
 };
 
-const createHistoryEntry = async (payload, transaction) => {
-  return BidHistory.create(payload, { transaction });
-};
-
 const placeBid = async (userId, { bidAmount }) => {
   if (!bidAmount || Number(bidAmount) <= 0) {
     const error = new Error('bidAmount must be greater than zero');
@@ -165,70 +231,92 @@ const placeBid = async (userId, { bidAmount }) => {
 
   const activeCycle = await ensureActiveCycle();
 
-  const result = await sequelize.transaction(async (transaction) => {
-    const lockedCycle = await BiddingCycle.findByPk(activeCycle.id, {
-      transaction,
-      lock: transaction.LOCK.UPDATE
-    });
+  const result = await sequelize.transaction(
+      {
+        isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED
+      },
+      async (transaction) => {
+        const lockedCycle = await BiddingCycle.findByPk(activeCycle.id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE
+        });
 
-    if (!lockedCycle || lockedCycle.status !== 'active' || new Date(lockedCycle.endTime) <= new Date()) {
-      const error = new Error('No active bidding cycle is available right now');
-      error.statusCode = 400;
-      throw error;
-    }
+        if (!lockedCycle || lockedCycle.status !== 'active' || new Date(lockedCycle.endTime) <= new Date()) {
+          const error = new Error('No active bidding cycle is available right now');
+          error.statusCode = 400;
+          throw error;
+        }
 
-    const existingBid = await Bid.findOne({
-      where: { userId, cycleId: lockedCycle.id },
-      transaction,
-      lock: transaction.LOCK.UPDATE
-    });
+        const winEligibility = await ensureMonthlyWinEligibilityForCycle(
+            userId,
+            lockedCycle,
+            transaction
+        );
 
-    if (existingBid && existingBid.status !== 'cancelled') {
-      const error = new Error('A bid already exists for the current cycle. Use update instead.');
-      error.statusCode = 409;
-      throw error;
-    }
+        const bidEligibility = await ensureMonthlyBidEligibilityForCycle(
+            userId,
+            lockedCycle,
+            transaction
+        );
 
-    const limitStatus = await ensureEligibleToBidForCycle(userId, lockedCycle, transaction);
+        const existingBid = await Bid.findOne({
+          where: {
+            userId,
+            cycleId: lockedCycle.id
+          },
+          transaction,
+          lock: transaction.LOCK.UPDATE
+        });
 
-    const bid = await Bid.create(
-        {
-          userId,
-          cycleId: lockedCycle.id,
-          bidAmount: Number(bidAmount),
-          status: 'active'
-        },
-        { transaction }
-    );
+        if (existingBid && existingBid.status !== 'cancelled') {
+          const error = new Error('A bid already exists for the current cycle. Use update instead.');
+          error.statusCode = 409;
+          throw error;
+        }
 
-    await createHistoryEntry(
-        {
-          cycleId: lockedCycle.id,
-          bidId: bid.id,
-          userId,
-          action: 'created',
-          previousAmount: null,
-          newAmount: Number(bidAmount),
-          note: 'Bid created for active cycle'
-        },
-        transaction
-    );
+        const bid = await Bid.create(
+            {
+              userId,
+              cycleId: lockedCycle.id,
+              bidAmount: Number(bidAmount),
+              status: 'active'
+            },
+            { transaction }
+        );
 
-    const feedback = await getBlindStatusForBid(bid, transaction);
+        await createHistoryEntry(
+            {
+              cycleId: lockedCycle.id,
+              bidId: bid.id,
+              userId,
+              action: 'created',
+              previousAmount: null,
+              newAmount: Number(bidAmount),
+              note: 'Bid created for active cycle'
+            },
+            transaction
+        );
 
-    return {
-      cycle: lockedCycle,
-      bid,
-      feedback,
-      remainingSlots: limitStatus.remainingSlots,
-      emailData: {
-        userId,
-        cycleId: lockedCycle.id,
-        bidAmount: Number(bidAmount),
-        featuredDate: lockedCycle.featuredDate
+        const feedback = await getBlindStatusForBid(bid, transaction);
+
+        return {
+          cycle: lockedCycle,
+          bid,
+          feedback,
+          allowedBidSlots: bidEligibility.allowedBidSlots,
+          allowedWinSlots: winEligibility.allowedWinSlots,
+          currentBids: bidEligibility.currentBids + 1,
+          currentWins: winEligibility.currentWins,
+          remainingBidSlots: bidEligibility.remainingBidSlots - 1,
+          remainingWinSlots: winEligibility.remainingWinSlots,
+          emailData: {
+            cycleId: lockedCycle.id,
+            bidAmount: Number(bidAmount),
+            featuredDate: lockedCycle.featuredDate
+          }
+        };
       }
-    };
-  });
+  );
 
   const user = await User.findByPk(userId);
 
@@ -246,7 +334,12 @@ const placeBid = async (userId, { bidAmount }) => {
     cycle: result.cycle,
     bid: result.bid,
     feedback: result.feedback,
-    remainingSlots: result.remainingSlots
+    allowedBidSlots: result.allowedBidSlots,
+    allowedWinSlots: result.allowedWinSlots,
+    currentBids: result.currentBids,
+    currentWins: result.currentWins,
+    remainingBidSlots: result.remainingBidSlots,
+    remainingWinSlots: result.remainingWinSlots
   };
 };
 
@@ -257,83 +350,118 @@ const updateBid = async (userId, bidId, { bidAmount }) => {
     throw error;
   }
 
-  const result = await sequelize.transaction(async (transaction) => {
-    const bid = await Bid.findOne({
-      where: { id: bidId, userId },
-      include: [
-        { model: BiddingCycle, as: 'cycle' },
-        { model: User, as: 'user' }
-      ],
-      transaction,
-      lock: transaction.LOCK.UPDATE
-    });
+  const result = await sequelize.transaction(
+      {
+        isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED
+      },
+      async (transaction) => {
+        const bid = await Bid.findOne({
+          where: { id: bidId, userId },
+          include: [{ model: BiddingCycle, as: 'cycle' }],
+          transaction,
+          lock: transaction.LOCK.UPDATE
+        });
 
-    if (!bid) {
-      const error = new Error('Bid not found');
-      error.statusCode = 404;
-      throw error;
-    }
+        if (!bid) {
+          const error = new Error('Bid not found');
+          error.statusCode = 404;
+          throw error;
+        }
 
-    if (bid.status !== 'active') {
-      const error = new Error('Only active bids can be updated');
-      error.statusCode = 400;
-      throw error;
-    }
+        if (bid.status !== 'active') {
+          const error = new Error('Only active bids can be updated');
+          error.statusCode = 400;
+          throw error;
+        }
 
-    if (!bid.cycle || bid.cycle.status !== 'active' || new Date(bid.cycle.endTime) <= new Date()) {
-      const error = new Error('The bidding cycle is closed. This bid can no longer be updated.');
-      error.statusCode = 400;
-      throw error;
-    }
+        if (!bid.cycle || bid.cycle.status !== 'active' || new Date(bid.cycle.endTime) <= new Date()) {
+          const error = new Error('The bidding cycle is closed. This bid can no longer be updated.');
+          error.statusCode = 400;
+          throw error;
+        }
 
-    if (Number(bidAmount) <= Number(bid.bidAmount)) {
-      const error = new Error('Bid amount must be greater than the current bid amount');
-      error.statusCode = 400;
-      throw error;
-    }
+        const winEligibility = await ensureMonthlyWinEligibilityForCycle(
+            userId,
+            bid.cycle,
+            transaction
+        );
 
-    const previousAmount = Number(bid.bidAmount);
-    bid.bidAmount = Number(bidAmount);
-    await bid.save({ transaction });
+        if (Number(bidAmount) <= Number(bid.bidAmount)) {
+          const error = new Error('Bid amount must be greater than the current bid amount');
+          error.statusCode = 400;
+          throw error;
+        }
 
-    await createHistoryEntry(
-        {
-          cycleId: bid.cycleId,
-          bidId: bid.id,
-          userId,
-          action: 'increased',
-          previousAmount,
-          newAmount: Number(bidAmount),
-          note: 'Bid increased'
-        },
-        transaction
-    );
+        const currentBids = await getBidCountForFeaturedMonth(
+            userId,
+            bid.cycle.featuredDate,
+            transaction
+        );
 
-    const feedback = await getBlindStatusForBid(bid, transaction);
+        const allowedBidSlots = await getAllowedMonthlyBidSlots(userId);
 
-    return {
-      cycle: bid.cycle,
-      bid,
-      feedback,
-      emailData: {
-        to: bid.user?.email,
-        fullName: bid.user?.fullName || bid.user?.email || 'User',
-        previousAmount,
-        newAmount: Number(bidAmount),
-        cycleId: bid.cycleId,
-        featuredDate: bid.cycle?.featuredDate
+        const previousAmount = Number(bid.bidAmount);
+        bid.bidAmount = Number(bidAmount);
+        await bid.save({ transaction });
+
+        await createHistoryEntry(
+            {
+              cycleId: bid.cycleId,
+              bidId: bid.id,
+              userId,
+              action: 'increased',
+              previousAmount,
+              newAmount: Number(bidAmount),
+              note: 'Bid increased'
+            },
+            transaction
+        );
+
+        const feedback = await getBlindStatusForBid(bid, transaction);
+
+        return {
+          cycle: bid.cycle,
+          bid,
+          feedback,
+          allowedBidSlots,
+          allowedWinSlots: winEligibility.allowedWinSlots,
+          currentBids,
+          currentWins: winEligibility.currentWins,
+          remainingBidSlots: allowedBidSlots - currentBids,
+          remainingWinSlots: winEligibility.remainingWinSlots,
+          emailData: {
+            previousAmount,
+            newAmount: Number(bidAmount),
+            cycleId: bid.cycleId,
+            featuredDate: bid.cycle?.featuredDate
+          }
+        };
       }
-    };
-  });
+  );
 
-  if (result.emailData?.to) {
-    await sendBidUpdatedEmail(result.emailData);
+  const user = await User.findByPk(userId);
+
+  if (user?.email) {
+    await sendBidUpdatedEmail({
+      to: user.email,
+      fullName: user.fullName || user.email,
+      cycleId: result.emailData.cycleId,
+      previousAmount: result.emailData.previousAmount,
+      newAmount: result.emailData.newAmount,
+      featuredDate: result.emailData.featuredDate
+    });
   }
 
   return {
     cycle: result.cycle,
     bid: result.bid,
-    feedback: result.feedback
+    feedback: result.feedback,
+    allowedBidSlots: result.allowedBidSlots,
+    allowedWinSlots: result.allowedWinSlots,
+    currentBids: result.currentBids,
+    currentWins: result.currentWins,
+    remainingBidSlots: result.remainingBidSlots,
+    remainingWinSlots: result.remainingWinSlots
   };
 };
 
@@ -406,27 +534,30 @@ const listOwnBids = async (userId) => {
 
 const getMyCurrentBidStatus = async (userId) => {
   const activeCycle = await ensureActiveCycle();
-  const bid = await Bid.findOne({ where: { userId, cycleId: activeCycle.id } });
+  const bid = await Bid.findOne({
+    where: { userId, cycleId: activeCycle.id },
+    include: [{ model: BiddingCycle, as: 'cycle' }]
+  });
 
-  if (!bid) {
-    const limitStatus = await ensureEligibleToBidForCycle(userId, activeCycle);
-
-    return {
-      cycle: activeCycle,
-      bid: null,
-      blindStatus: 'not_placed',
-      remainingSlots: limitStatus.remainingSlots
-    };
-  }
-
-  const allowedWins = await getAllowedWinsForFeaturedMonth(userId);
+  const allowedBidSlots = await getAllowedMonthlyBidSlots(userId);
+  const allowedWinSlots = await getAllowedMonthlyWinSlots();
+  const currentBids = await getBidCountForFeaturedMonth(userId, activeCycle.featuredDate);
   const currentWins = await getWinCountForFeaturedMonth(userId, activeCycle.featuredDate);
 
   return {
     cycle: activeCycle,
     bid,
-    blindStatus: bid.status === 'active' ? await getBlindStatusForBid(bid) : bid.status,
-    remainingSlots: allowedWins - currentWins
+    blindStatus: bid
+        ? bid.status === 'active'
+            ? await getBlindStatusForBid(bid)
+            : bid.status
+        : 'not_placed',
+    allowedBidSlots,
+    allowedWinSlots,
+    currentBids,
+    currentWins,
+    remainingBidSlots: Math.max(allowedBidSlots - currentBids, 0),
+    remainingWinSlots: Math.max(allowedWinSlots - currentWins, 0)
   };
 };
 
@@ -486,12 +617,7 @@ const processCycleById = async (cycleId, options = {}) => {
         const activeBids = await Bid.findAll({
           where: { cycleId: cycle.id, status: 'active' },
           order: [['bidAmount', 'DESC'], ['createdAt', 'ASC']],
-          include: [
-            {
-              model: User,
-              as: 'user'
-            }
-          ],
+          include: [{ model: User, as: 'user' }],
           transaction,
           lock: transaction.LOCK.UPDATE
         });
@@ -499,7 +625,7 @@ const processCycleById = async (cycleId, options = {}) => {
         let winnerBid = null;
 
         for (const candidateBid of activeBids) {
-          const allowedWins = await getAllowedWinsForFeaturedMonth(candidateBid.userId);
+          const allowedWins = await getAllowedMonthlyWinSlots();
           const currentWins = await getWinCountForFeaturedMonth(
               candidateBid.userId,
               cycle.featuredDate,
@@ -643,8 +769,7 @@ const getCycleHistoryById = async (cycleId) => {
       {
         model: Bid,
         as: 'bids',
-        include: [{ model: User, as: 'user', attributes: ['id', 'email'] }],
-        order: [['bidAmount', 'DESC']]
+        include: [{ model: User, as: 'user', attributes: ['id', 'email'] }]
       },
       {
         model: BidHistory,
@@ -676,7 +801,7 @@ const getCycleHistoryById = async (cycleId) => {
 };
 
 const getFeaturedAlumnusForDate = async (dateString) => {
-  const cycle = await BiddingCycle.findOne({
+  return BiddingCycle.findOne({
     where: {
       featuredDate: dateString,
       status: 'processed'
@@ -696,8 +821,6 @@ const getFeaturedAlumnusForDate = async (dateString) => {
       }
     ]
   });
-
-  return cycle;
 };
 
 const processCurrentCycle = async () => {
