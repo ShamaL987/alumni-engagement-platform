@@ -1,6 +1,7 @@
 const { Op, Transaction } = require('sequelize');
 const sequelize = require('../config/db');
 const { Bid, BidHistory, BiddingCycle, Profile, User } = require('../models');
+const {sendWinnerSelectedEmail, sendBidUpdatedEmail, sendBidPlacedEmail} = require("./mail.service");
 
 const CYCLE_CLOSE_HOUR = Number(process.env.BIDDING_CLOSE_HOUR || 18);
 const MANUAL_CYCLE_PROCESSING_ENABLED = process.env.ENABLE_MANUAL_CYCLE_PROCESSING !== 'false';
@@ -164,7 +165,7 @@ const placeBid = async (userId, { bidAmount }) => {
 
   const activeCycle = await ensureActiveCycle();
 
-  return sequelize.transaction(async (transaction) => {
+  const result = await sequelize.transaction(async (transaction) => {
     const lockedCycle = await BiddingCycle.findByPk(activeCycle.id, {
       transaction,
       lock: transaction.LOCK.UPDATE
@@ -189,6 +190,7 @@ const placeBid = async (userId, { bidAmount }) => {
     }
 
     const limitStatus = await ensureEligibleToBidForCycle(userId, lockedCycle, transaction);
+
     const bid = await Bid.create(
         {
           userId,
@@ -218,9 +220,34 @@ const placeBid = async (userId, { bidAmount }) => {
       cycle: lockedCycle,
       bid,
       feedback,
-      remainingSlots: limitStatus.remainingSlots
+      remainingSlots: limitStatus.remainingSlots,
+      emailData: {
+        userId,
+        cycleId: lockedCycle.id,
+        bidAmount: Number(bidAmount),
+        featuredDate: lockedCycle.featuredDate
+      }
     };
   });
+
+  const user = await User.findByPk(userId);
+
+  if (user?.email) {
+    await sendBidPlacedEmail({
+      to: user.email,
+      fullName: user.fullName || user.email,
+      cycleId: result.emailData.cycleId,
+      bidAmount: result.emailData.bidAmount,
+      featuredDate: result.emailData.featuredDate
+    });
+  }
+
+  return {
+    cycle: result.cycle,
+    bid: result.bid,
+    feedback: result.feedback,
+    remainingSlots: result.remainingSlots
+  };
 };
 
 const updateBid = async (userId, bidId, { bidAmount }) => {
@@ -230,10 +257,13 @@ const updateBid = async (userId, bidId, { bidAmount }) => {
     throw error;
   }
 
-  return sequelize.transaction(async (transaction) => {
+  const result = await sequelize.transaction(async (transaction) => {
     const bid = await Bid.findOne({
       where: { id: bidId, userId },
-      include: [{ model: BiddingCycle, as: 'cycle' }],
+      include: [
+        { model: BiddingCycle, as: 'cycle' },
+        { model: User, as: 'user' }
+      ],
       transaction,
       lock: transaction.LOCK.UPDATE
     });
@@ -284,9 +314,27 @@ const updateBid = async (userId, bidId, { bidAmount }) => {
     return {
       cycle: bid.cycle,
       bid,
-      feedback
+      feedback,
+      emailData: {
+        to: bid.user?.email,
+        fullName: bid.user?.fullName || bid.user?.email || 'User',
+        previousAmount,
+        newAmount: Number(bidAmount),
+        cycleId: bid.cycleId,
+        featuredDate: bid.cycle?.featuredDate
+      }
     };
   });
+
+  if (result.emailData?.to) {
+    await sendBidUpdatedEmail(result.emailData);
+  }
+
+  return {
+    cycle: result.cycle,
+    bid: result.bid,
+    feedback: result.feedback
+  };
 };
 
 const cancelBid = async (userId, bidId) => {
@@ -406,7 +454,7 @@ const markLosingBids = async (bids, transaction) => {
 const processCycleById = async (cycleId, options = {}) => {
   const { force = false } = options;
 
-  return sequelize.transaction(
+  const result = await sequelize.transaction(
       {
         isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED
       },
@@ -423,7 +471,7 @@ const processCycleById = async (cycleId, options = {}) => {
         }
 
         if (cycle.status === 'processed') {
-          return cycle;
+          return { cycle, winnerInfo: null };
         }
 
         if (!force && new Date(cycle.endTime) > new Date()) {
@@ -438,6 +486,12 @@ const processCycleById = async (cycleId, options = {}) => {
         const activeBids = await Bid.findAll({
           where: { cycleId: cycle.id, status: 'active' },
           order: [['bidAmount', 'DESC'], ['createdAt', 'ASC']],
+          include: [
+            {
+              model: User,
+              as: 'user'
+            }
+          ],
           transaction,
           lock: transaction.LOCK.UPDATE
         });
@@ -446,13 +500,19 @@ const processCycleById = async (cycleId, options = {}) => {
 
         for (const candidateBid of activeBids) {
           const allowedWins = await getAllowedWinsForFeaturedMonth(candidateBid.userId);
-          const currentWins = await getWinCountForFeaturedMonth(candidateBid.userId, cycle.featuredDate, transaction);
+          const currentWins = await getWinCountForFeaturedMonth(
+              candidateBid.userId,
+              cycle.featuredDate,
+              transaction
+          );
 
           if (currentWins < allowedWins) {
             winnerBid = candidateBid;
             break;
           }
         }
+
+        let winnerInfo = null;
 
         if (winnerBid) {
           winnerBid.status = 'won';
@@ -472,11 +532,22 @@ const processCycleById = async (cycleId, options = {}) => {
               transaction
           );
 
-          const losingBids = activeBids.filter((bid) => Number(bid.id) !== Number(winnerBid.id));
+          const losingBids = activeBids.filter(
+              (bid) => Number(bid.id) !== Number(winnerBid.id)
+          );
+
           await markLosingBids(losingBids, transaction);
 
           cycle.winnerBidId = winnerBid.id;
           cycle.winnerUserId = winnerBid.userId;
+
+          winnerInfo = {
+            email: winnerBid.user?.email,
+            fullName: winnerBid.user?.fullName || winnerBid.user?.email,
+            bidAmount: Number(winnerBid.bidAmount),
+            featuredDate: cycle.featuredDate,
+            cycleId: cycle.id
+          };
         } else {
           await markLosingBids(activeBids, transaction);
 
@@ -498,9 +569,21 @@ const processCycleById = async (cycleId, options = {}) => {
         cycle.processedAt = new Date();
         await cycle.save({ transaction });
 
-        return cycle;
+        return { cycle, winnerInfo };
       }
   );
+
+  if (result.winnerInfo?.email) {
+    await sendWinnerSelectedEmail({
+      to: result.winnerInfo.email,
+      fullName: result.winnerInfo.fullName,
+      cycleId: result.winnerInfo.cycleId,
+      bidAmount: result.winnerInfo.bidAmount,
+      featuredDate: result.winnerInfo.featuredDate
+    });
+  }
+
+  return result.cycle;
 };
 
 const processDueCycles = async () => {

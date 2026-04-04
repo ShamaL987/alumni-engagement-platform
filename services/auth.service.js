@@ -4,7 +4,9 @@ const { hashPassword, comparePassword } = require('../utils/hash');
 const { generateAccessToken } = require('../utils/jwt');
 const { generateRandomToken, hashToken } = require('../utils/token');
 const { isUniversityEmail, isStrongPassword } = require('../utils/validators');
-const { sendEmail } = require('./email.service');
+const {sendVerificationEmail, sendPasswordResetEmail} = require('./mail.service');
+const {PASSWORD_RESET_TOKEN_TYPE, TOKEN_EXPIRY_MINUTES, EMAIL_VERIFICATION_TOKEN_TYPE} = require("./helper.service");
+
 
 const buildPublicUser = (user) => ({
   id: user.id,
@@ -41,11 +43,11 @@ const issueOneTimeToken = async (userId, type, expiresInMinutes) => {
 };
 
 const findUsableToken = async (plainToken, type) => {
-  const tokenHash = hashToken(plainToken);
+  const tokenHashValue = hashToken(plainToken);
 
   return AuthToken.findOne({
     where: {
-      tokenHash,
+      tokenHash: tokenHashValue,
       type,
       usedAt: null,
       expiresAt: {
@@ -84,13 +86,13 @@ const register = async ({ email, password }) => {
 
   await Profile.create({ userId: user.id });
 
-  const verificationToken = await issueOneTimeToken(user.id, 'email_verification', 60);
+  const verificationToken = await issueOneTimeToken(
+      user.id,
+      EMAIL_VERIFICATION_TOKEN_TYPE,
+      TOKEN_EXPIRY_MINUTES
+  );
 
-  await sendEmail({
-    to: user.email,
-    subject: 'Verify your email',
-    text: `Your verification token is ${verificationToken}`
-  });
+  await sendVerificationEmail(user, verificationToken);
 
   return {
     user: buildPublicUser(user),
@@ -105,7 +107,7 @@ const verifyEmail = async (plainToken) => {
     throw error;
   }
 
-  const authToken = await findUsableToken(plainToken, 'email_verification');
+  const authToken = await findUsableToken(plainToken, EMAIL_VERIFICATION_TOKEN_TYPE);
   if (!authToken) {
     const error = new Error('Verification token is invalid or expired');
     error.statusCode = 400;
@@ -113,6 +115,12 @@ const verifyEmail = async (plainToken) => {
   }
 
   const user = await User.findByPk(authToken.userId);
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
   user.isEmailVerified = true;
   await user.save();
 
@@ -120,6 +128,41 @@ const verifyEmail = async (plainToken) => {
   await authToken.save();
 
   return buildPublicUser(user);
+};
+
+const resendEmailVerification = async (email) => {
+  if (!email) {
+    const error = new Error('Email is required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await User.findOne({ where: { email } });
+
+  if (!user) {
+    return {
+      message: 'If the account exists, a verification email has been sent.'
+    };
+  }
+
+  if (user.isEmailVerified) {
+    return {
+      message: 'Email is already verified.'
+    };
+  }
+
+  const verificationToken = await issueOneTimeToken(
+      user.id,
+      EMAIL_VERIFICATION_TOKEN_TYPE,
+      TOKEN_EXPIRY_MINUTES
+  );
+
+  await sendVerificationEmail(user, verificationToken);
+
+  return {
+    message: 'Verification email sent successfully.',
+    verificationToken: process.env.EXPOSE_DEV_TOKENS === 'true' ? verificationToken : undefined
+  };
 };
 
 const login = async ({ email, password }) => {
@@ -163,8 +206,9 @@ const login = async ({ email, password }) => {
 };
 
 const verifyCurrentToken = async (userId) => {
-  const user = await User.findByPk(userId, { attributes: ['id', 'email', 'isEmailVerified', 'lastLoginAt'] });
-  return user;
+  return await User.findByPk(userId, {
+    attributes: ['id', 'email', 'isEmailVerified', 'lastLoginAt']
+  });
 };
 
 const forgotPassword = async (email) => {
@@ -173,13 +217,13 @@ const forgotPassword = async (email) => {
     return { resetToken: undefined };
   }
 
-  const resetToken = await issueOneTimeToken(user.id, 'password_reset', 60);
+  const resetToken = await issueOneTimeToken(
+      user.id,
+      PASSWORD_RESET_TOKEN_TYPE,
+      TOKEN_EXPIRY_MINUTES
+  );
 
-  await sendEmail({
-    to: user.email,
-    subject: 'Reset your password',
-    text: `Your password reset token is ${resetToken}`
-  });
+  await sendPasswordResetEmail(user, resetToken);
 
   return {
     resetToken: process.env.EXPOSE_DEV_TOKENS === 'true' ? resetToken : undefined
@@ -193,7 +237,7 @@ const resetPassword = async ({ token, newPassword }) => {
     throw error;
   }
 
-  const authToken = await findUsableToken(token, 'password_reset');
+  const authToken = await findUsableToken(token, PASSWORD_RESET_TOKEN_TYPE);
   if (!authToken) {
     const error = new Error('Reset token is invalid or expired');
     error.statusCode = 400;
@@ -201,6 +245,12 @@ const resetPassword = async ({ token, newPassword }) => {
   }
 
   const user = await User.findByPk(authToken.userId);
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
   user.passwordHash = await hashPassword(newPassword);
   user.tokenVersion += 1;
   await user.save();
@@ -213,6 +263,13 @@ const resetPassword = async ({ token, newPassword }) => {
 
 const logout = async (userId) => {
   const user = await User.findByPk(userId);
+
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
   user.tokenVersion += 1;
   await user.save();
   return true;
@@ -237,6 +294,7 @@ const deleteAccount = async (userId) => {
 module.exports = {
   register,
   verifyEmail,
+  resendEmailVerification,
   login,
   verifyCurrentToken,
   forgotPassword,
