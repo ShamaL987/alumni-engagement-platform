@@ -1,0 +1,48 @@
+<%- include('../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="container">
+  <%- include('../partials/flash') %>
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Featured profile</p>
+      <h1>Alumni of the Day</h1>
+      <p>Profiles are selected automatically from the completed blind-bidding cycle.</p>
+    </div>
+  </section>
+
+  <% const winner = cycle?.winnerUser?.profile; %>
+  <% if (winner) { %>
+    <section class="feature-card">
+      <% if (winner.profileImagePath) { %>
+        <img class="avatar-large" src="<%= winner.profileImagePath %>" alt="<%= winner.fullName %>">
+      <% } else { %>
+        <div class="avatar-large placeholder"><%= (winner.fullName || 'A').slice(0,1) %></div>
+      <% } %>
+      <div>
+        <h2><%= winner.fullName %></h2>
+        <p class="muted"><%= winner.currentJobTitle || 'Graduate' %><% if (winner.employer) { %> · <%= winner.employer %><% } %></p>
+        <p><%= winner.biography || 'This alumni profile is currently being completed.' %></p>
+        <div class="tag-row">
+          <% (winner.skills || []).slice(0, 8).forEach((skill) => { %>
+            <span class="tag"><%= skill %></span>
+          <% }) %>
+        </div>
+        <dl class="profile-facts">
+          <div><dt>Programme</dt><dd><%= winner.programme || '-' %></dd></div>
+          <div><dt>Graduation</dt><dd><%= winner.graduationYear || '-' %></dd></div>
+          <div><dt>Industry</dt><dd><%= winner.industrySector || '-' %></dd></div>
+          <div><dt>Location</dt><dd><%= [winner.city, winner.country].filter(Boolean).join(', ') || '-' %></dd></div>
+        </dl>
+        <% if (winner.linkedInUrl) { %>
+          <a class="button" href="<%= winner.linkedInUrl %>" target="_blank" rel="noreferrer">View LinkedIn</a>
+        <% } %>
+      </div>
+    </section>
+  <% } else { %>
+    <section class="card empty">
+      <h2>No featured alumni yet</h2>
+      <p>Once a bidding cycle is processed, the winner will appear here.</p>
+    </section>
+  <% } %>
+</main>
+<%- include('../partials/footer') %>

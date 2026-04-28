@@ -1,5 +1,7 @@
 # Node modules
 node_modules/
+CW1/node_modules
+CW2/node_modules
 
 # Logs
 logs/

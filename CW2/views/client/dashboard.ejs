@@ -1,0 +1,118 @@
+<%- include('../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<%
+  const chartBlock = (heading, type, values) => {
+    const rows = Array.isArray(values) ? values : [];
+    return `
+      <article class="chart-card">
+        <h2>${heading}</h2>
+        ${rows.length ? `<canvas data-chart="${type}" data-encoded="true" data-values="${encodeURIComponent(JSON.stringify(rows))}"></canvas>` : `<div class="chart-empty">No database records found for this chart yet.</div>`}
+      </article>`;
+  };
+%>
+<main class="container">
+  <%- include('../partials/flash') %>
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">Client platform</p>
+      <h1>University Analytics Dashboard</h1>
+      <p>Simple decision-focused analytics built only from alumni profiles, skills and professional-development items saved in the database.</p>
+    </div>
+    <div class="action-row">
+      <a class="button secondary" href="/client/alumni?<%= new URLSearchParams(query).toString() %>">View Alumni</a>
+      <a class="button secondary" href="/client/export.csv?<%= new URLSearchParams(query).toString() %>">Export CSV</a>
+      <button class="button secondary" onclick="window.print()">Print / PDF</button>
+    </div>
+  </section>
+
+  <div class="source-note"><%= analytics.sourceNote %></div>
+
+  <form class="filters card" method="get" action="/client/dashboard">
+    <label>Programme
+      <select name="programme">
+        <option value="">All programmes</option>
+        <% options.programmes.forEach((value) => { %>
+          <option value="<%= value %>" <%= query.programme === String(value) ? 'selected' : '' %>><%= value %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>Graduation year
+      <select name="graduationYear">
+        <option value="">All years</option>
+        <% options.graduationYears.forEach((value) => { %>
+          <option value="<%= value %>" <%= query.graduationYear === String(value) ? 'selected' : '' %>><%= value %></option>
+        <% }) %>
+      </select>
+    </label>
+    <label>Industry sector
+      <select name="industrySector">
+        <option value="">All sectors</option>
+        <% options.industrySectors.forEach((value) => { %>
+          <option value="<%= value %>" <%= query.industrySector === String(value) ? 'selected' : '' %>><%= value %></option>
+        <% }) %>
+      </select>
+    </label>
+    <button class="button" type="submit">Apply filters</button>
+  </form>
+
+  <section class="kpi-grid">
+    <article class="kpi-card"><span>Total alumni</span><strong><%= analytics.summary.totalAlumni %></strong></article>
+    <article class="kpi-card"><span>Profile completion</span><strong><%= analytics.summary.profileCompletionRate %>%</strong></article>
+    <article class="kpi-card"><span>Professional items</span><strong><%= analytics.summary.professionalItems %></strong></article>
+    <article class="kpi-card"><span>Bids placed</span><strong><%= analytics.summary.totalBids %></strong></article>
+  </section>
+
+  <section class="chart-grid">
+    <%- chartBlock('Alumni by Programme', 'bar', analytics.charts.programmes) %>
+    <%- chartBlock('Graduation Year Trend', 'line', analytics.charts.graduationYears) %>
+    <%- chartBlock('Employment by Industry Sector', 'doughnut', analytics.charts.industrySectors) %>
+    <%- chartBlock('Most Common Job Titles', 'bar', analytics.charts.jobTitles) %>
+    <%- chartBlock('Top Skills', 'radar', analytics.charts.topSkills.slice(0, 8)) %>
+    <%- chartBlock('Professional Development Types', 'pie', analytics.charts.developmentTypes) %>
+    <%- chartBlock('Top Certificates / Courses / Licences', 'bar', analytics.charts.developmentTitles) %>
+    <%- chartBlock('Top Issuers / Providers', 'doughnut', analytics.charts.issuers) %>
+  </section>
+
+  <section class="card">
+    <h2>Curriculum Skills Gap Signals</h2>
+    <p class="muted">These are not hard-coded. They are calculated from saved alumni skills, certificates and short-course records.</p>
+    <% if (!analytics.charts.skillGaps.length) { %>
+      <div class="empty-state">No skill-gap signals yet. Add skills or professional-development items to alumni profiles.</div>
+    <% } else { %>
+      <div class="insight-grid">
+        <% analytics.charts.skillGaps.forEach((gap) => { %>
+          <div class="insight <%= gap.severity %>">
+            <span><%= gap.severity %></span>
+            <strong><%= gap.label %></strong>
+            <p><%= gap.percentage %>% of filtered alumni mention this in skills or professional development.</p>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </section>
+
+  <section class="card">
+    <h2>Save Filter Preset</h2>
+    <form method="post" action="/client/presets" class="filters">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="programme" value="<%= query.programme || '' %>">
+      <input type="hidden" name="graduationYear" value="<%= query.graduationYear || '' %>">
+      <input type="hidden" name="industrySector" value="<%= query.industrySector || '' %>">
+      <label>Preset name
+        <input name="name" required placeholder="CS 2025 cloud skills">
+      </label>
+      <button class="button" type="submit">Save preset</button>
+    </form>
+    <div class="preset-list">
+      <% presets.forEach((preset) => { %>
+        <form method="post" action="/client/presets/<%= preset.id %>?_method=DELETE" class="preset">
+          <a href="/client/dashboard?<%= new URLSearchParams(preset.filters).toString() %>"><%= preset.name %></a>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="link-button danger-text" type="submit">Delete</button>
+        </form>
+      <% }) %>
+    </div>
+  </section>
+</main>
+<script src="/js/charts.js"></script>
+<%- include('../partials/footer') %>

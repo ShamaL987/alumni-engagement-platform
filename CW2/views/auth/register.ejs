@@ -1,0 +1,27 @@
+<%- include('../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="auth-shell">
+  <section class="auth-card">
+    <h1>Register</h1>
+    <p class="muted">Create an alumni or university client account.</p>
+    <%- include('../partials/flash') %>
+    <form method="post" action="/register" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label>Email
+        <input name="email" type="email" required autocomplete="email">
+      </label>
+      <label>Password
+        <input name="password" type="password" minlength="8" required autocomplete="new-password">
+      </label>
+      <label>Role
+        <select name="role" required>
+          <option value="alumni">Alumni</option>
+          <option value="client">University Client</option>
+        </select>
+      </label>
+      <button class="button full" type="submit">Register</button>
+    </form>
+    <p class="hint">Password must include uppercase, lowercase, number and symbol. University domain enforcement can be enabled in .env.</p>
+  </section>
+</main>
+<%- include('../partials/footer') %>

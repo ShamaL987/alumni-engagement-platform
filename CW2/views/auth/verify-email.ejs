@@ -1,0 +1,16 @@
+<%- include('../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="auth-shell">
+  <section class="auth-card">
+    <h1>Verify Email</h1>
+    <%- include('../partials/flash') %>
+    <form method="post" action="/verify-email" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label>Verification token
+        <input name="token" value="<%= token || '' %>" required>
+      </label>
+      <button class="button full" type="submit">Verify</button>
+    </form>
+  </section>
+</main>
+<%- include('../partials/footer') %>

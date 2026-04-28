@@ -1,0 +1,9 @@
+<% if (flash?.success?.length) { %>
+  <div class="flash success"><%= flash.success.join(' ') %></div>
+<% } %>
+<% if (flash?.error?.length) { %>
+  <div class="flash error"><%= flash.error.join(' ') %></div>
+<% } %>
+<% if (flash?.info?.length) { %>
+  <div class="flash info"><%= flash.info.join(' ') %></div>
+<% } %>

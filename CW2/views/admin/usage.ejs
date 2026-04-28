@@ -1,0 +1,67 @@
+<%- include('../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="container">
+  <%- include('../partials/flash') %>
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">Security monitoring</p>
+      <h1>Usage Statistics</h1>
+      <p>View client API key usage, accessed endpoints and login/session activity.</p>
+    </div>
+  </section>
+
+  <section class="chart-grid">
+    <article class="chart-card">
+      <h2>Requests by API Key</h2>
+      <canvas data-chart="bar" data-values='<%- JSON.stringify(usage.charts.byKey) %>'></canvas>
+    </article>
+    <article class="chart-card">
+      <h2>Top Endpoints</h2>
+      <canvas data-chart="doughnut" data-values='<%- JSON.stringify(usage.charts.byEndpoint) %>'></canvas>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2>API Usage Logs</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Key</th><th>Method</th><th>Endpoint</th><th>Status</th><th>IP</th></tr></thead>
+        <tbody>
+          <% usage.apiLogs.forEach((log) => { %>
+            <tr>
+              <td><%= new Date(log.createdAt).toLocaleString() %></td>
+              <td><%= log.apiKey?.name || '-' %></td>
+              <td><%= log.method %></td>
+              <td><%= log.endpoint %></td>
+              <td><%= log.statusCode %></td>
+              <td><%= log.ipAddress || '-' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Web Request Logs</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>User</th><th>Method</th><th>Endpoint</th><th>Status</th><th>Subject</th></tr></thead>
+        <tbody>
+          <% usage.webLogs.forEach((log) => { %>
+            <tr>
+              <td><%= new Date(log.createdAt).toLocaleString() %></td>
+              <td><%= log.user?.email || '-' %></td>
+              <td><%= log.method %></td>
+              <td><%= log.endpoint %></td>
+              <td><%= log.statusCode %></td>
+              <td><%= log.tokenSubject || '-' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script src="/js/charts.js"></script>
+<%- include('../partials/footer') %>
