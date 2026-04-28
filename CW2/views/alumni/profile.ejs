@@ -1,0 +1,197 @@
+<%- include('../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<%
+  const listText = (value) => {
+    if (Array.isArray(value)) return value.map((item) => typeof item === 'string' ? item : item?.name || item?.title || '').filter(Boolean).join(', ');
+    if (typeof value === 'string') return value;
+    return '';
+  };
+  const documents = Array.isArray(profile?.documents) ? profile.documents : [];
+  const typeLabel = (type) => ({
+    degree: 'Degree',
+    certification: 'Certificate',
+    licence: 'Licence',
+    short_course: 'Short course',
+    employment_evidence: 'Employment evidence',
+    other: 'Other'
+  }[type] || 'Other');
+  const typeOptions = [
+    ['certification', 'Certificate'],
+    ['licence', 'Licence'],
+    ['short_course', 'Short course'],
+    ['degree', 'Degree'],
+    ['employment_evidence', 'Employment evidence'],
+    ['other', 'Other']
+  ];
+%>
+<main class="container">
+  <%- include('../partials/flash') %>
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">Alumni platform</p>
+      <h1>My Alumni Profile</h1>
+      <p>Complete your basic details and add professional-development items. These records power the client analytics dashboard.</p>
+    </div>
+    <a class="button secondary" href="/alumni/bids">Go to blind bidding</a>
+  </section>
+
+  <% if (!profile || (!profile.fullName && !profile.programme && !profile.currentJobTitle)) { %>
+    <div class="flash info">Your profile is empty. You can save it empty now and complete it later.</div>
+  <% } %>
+
+  <form action="/alumni/profile?_csrf=<%= encodeURIComponent(csrfToken) %>" method="post" enctype="multipart/form-data" class="grid-form card">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="form-section span-2">
+      <h2>Basic details</h2>
+      <p class="muted">Only full name and programme are required before bidding. Analytics uses the database values saved here.</p>
+    </div>
+
+    <label>Full name
+      <input name="fullName" value="<%= profile?.fullName || '' %>" placeholder="Your full name">
+    </label>
+    <label>LinkedIn URL
+      <input name="linkedInUrl" value="<%= profile?.linkedInUrl || '' %>" placeholder="https://linkedin.com/in/...">
+    </label>
+    <label>Programme
+      <input name="programme" value="<%= profile?.programme || '' %>" placeholder="Computer Science">
+    </label>
+    <label>Graduation year
+      <input name="graduationYear" type="number" min="1980" max="2100" value="<%= profile?.graduationYear || '' %>">
+    </label>
+    <label>Graduation date
+      <input name="graduationDate" type="date" value="<%= profile?.graduationDate || '' %>">
+    </label>
+    <label>Industry sector
+      <input name="industrySector" value="<%= profile?.industrySector || '' %>" placeholder="Software Engineering">
+    </label>
+    <label>Current job title
+      <input name="currentJobTitle" value="<%= profile?.currentJobTitle || '' %>" placeholder="Software Engineer">
+    </label>
+    <label>Employer
+      <input name="employer" value="<%= profile?.employer || '' %>">
+    </label>
+    <label>Country
+      <input name="country" value="<%= profile?.country || '' %>">
+    </label>
+    <label>City
+      <input name="city" value="<%= profile?.city || '' %>">
+    </label>
+    <label class="span-2">Skills <span class="hint">comma separated</span>
+      <input name="skills" value="<%= listText(profile?.skills) %>" placeholder="Docker, Kubernetes, SQL, Tableau">
+    </label>
+    <label class="span-2">Biography
+      <textarea name="biography" rows="5"><%= profile?.biography || '' %></textarea>
+    </label>
+    <label>Profile image
+      <input name="profileImage" type="file" accept="image/*">
+    </label>
+    <label class="checkbox">
+      <input type="hidden" name="isPublic" value="false">
+      <input type="checkbox" name="isPublic" value="true" <%= profile?.isPublic !== false ? 'checked' : '' %>>
+      Show this profile in client alumni lists
+    </label>
+
+    <div class="action-row span-2">
+      <button class="button" type="submit">Save profile</button>
+    </div>
+  </form>
+
+  <section id="development" class="card">
+    <div class="section-title-row">
+      <div>
+        <h2>Professional development</h2>
+        <p class="muted">Add certificates, licences and short courses. The client dashboard calculates trends directly from these records.</p>
+      </div>
+    </div>
+
+    <form action="/alumni/development?_csrf=<%= encodeURIComponent(csrfToken) %>" method="post" enctype="multipart/form-data" class="grid-form compact sub-card">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label>Type
+        <select name="documentType">
+          <% typeOptions.forEach(([value, label]) => { %>
+            <option value="<%= value %>"><%= label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Title
+        <input name="title" placeholder="AWS Cloud Practitioner" required>
+      </label>
+      <label>Issuer / provider
+        <input name="issuer" placeholder="AWS, Microsoft, Coursera, BCS">
+      </label>
+      <label>Issued/completed date
+        <input name="issuedAt" type="date">
+      </label>
+      <label>External URL
+        <input name="externalUrl" placeholder="https://...">
+      </label>
+      <label>Upload document
+        <input name="documentFile" type="file" accept=".pdf,image/*">
+      </label>
+      <label class="span-2">Notes
+        <textarea name="notes" rows="2" placeholder="Optional notes"></textarea>
+      </label>
+      <button class="button span-2" type="submit">Add professional item</button>
+    </form>
+
+    <% if (!documents.length) { %>
+      <div class="empty-state">
+        <strong>No professional development items yet.</strong>
+        <p>Add certificates, licences or short courses above. Once multiple alumni add records, the client dashboard will show trends from database data.</p>
+      </div>
+    <% } %>
+
+    <div class="development-list">
+      <% documents.forEach((item) => { %>
+        <article class="sub-card development-item">
+          <form action="/alumni/development/<%= item.id %>/update?_csrf=<%= encodeURIComponent(csrfToken) %>" method="post" enctype="multipart/form-data" class="grid-form compact">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label>Type
+              <select name="documentType">
+                <% typeOptions.forEach(([value, label]) => { %>
+                  <option value="<%= value %>" <%= item.documentType === value ? 'selected' : '' %>><%= label %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>Title
+              <input name="title" value="<%= item.title || '' %>" required>
+            </label>
+            <label>Issuer / provider
+              <input name="issuer" value="<%= item.issuer || '' %>">
+            </label>
+            <label>Issued/completed date
+              <input name="issuedAt" type="date" value="<%= item.issuedAt || '' %>">
+            </label>
+            <label>External URL
+              <input name="externalUrl" value="<%= item.externalUrl || '' %>">
+            </label>
+            <label>Replace document
+              <input name="documentFile" type="file" accept=".pdf,image/*">
+            </label>
+            <label class="span-2">Notes
+              <textarea name="notes" rows="2"><%= item.notes || '' %></textarea>
+            </label>
+            <div class="action-row span-2">
+              <span class="tag"><%= typeLabel(item.documentType) %></span>
+              <% if (item.filePath) { %><a class="button secondary small" href="<%= item.filePath %>" target="_blank">View file</a><% } %>
+              <% if (item.externalUrl) { %><a class="button secondary small" href="<%= item.externalUrl %>" target="_blank">Open URL</a><% } %>
+              <button class="button small" type="submit">Update</button>
+            </div>
+          </form>
+          <form action="/alumni/development/<%= item.id %>/delete" method="post" class="inline-delete">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="danger small" type="submit" onclick="return confirm('Delete this professional development item?')">Delete</button>
+          </form>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+
+  <form action="/alumni/profile/clear" method="post" class="card danger-zone">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h2>Clear profile</h2>
+    <p class="muted">This removes profile fields and professional development records, but keeps your account.</p>
+    <button class="danger" type="submit" onclick="return confirm('Clear your profile and professional development records?')">Clear profile details</button>
+  </form>
+</main>
+<%- include('../partials/footer') %>

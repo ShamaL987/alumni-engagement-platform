@@ -1,0 +1,28 @@
+<header class="topbar">
+  <a class="brand" href="/">Alumni Influencers</a>
+  <nav class="nav">
+    <a href="/alumni-of-day">Alumni of the Day</a>
+    <% if (currentUser) { %>
+      <% if (currentUser.role === 'alumni') { %>
+        <a href="/alumni/profile">My Profile</a>
+        <a href="/alumni/bids">Blind Bidding</a>
+      <% } %>
+      <% if (currentUser.role === 'client' || currentUser.role === 'admin') { %>
+        <a href="/client/dashboard">Analytics</a>
+        <a href="/client/alumni">View Alumni</a>
+      <% } %>
+      <% if (currentUser.role === 'admin') { %>
+        <a href="/admin/api-keys">API Keys</a>
+        <a href="/admin/usage">Usage</a>
+      <% } %>
+      <span class="user-pill"><%= currentUser.email %> · <%= currentUser.role %></span>
+      <form class="inline" action="/logout" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="link-button" type="submit">Logout</button>
+      </form>
+    <% } else { %>
+      <a href="/login">Login</a>
+      <a class="button small" href="/register">Register</a>
+    <% } %>
+  </nav>
+</header>

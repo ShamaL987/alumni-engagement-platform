@@ -1,0 +1,71 @@
+<%- include('../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="container">
+  <%- include('../partials/flash') %>
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">Client platform</p>
+      <h1>View Alumni</h1>
+      <p>Filter alumni by programme, graduation year and industry sector. The list uses only saved database profiles.</p>
+    </div>
+    <a class="button secondary" href="/client/dashboard">Back to dashboard</a>
+  </section>
+
+  <form class="filters card" method="get" action="/client/alumni">
+    <label>Search
+      <input name="search" value="<%= query.search || '' %>" placeholder="name, employer, job title">
+    </label>
+    <label>Programme
+      <select name="programme">
+        <option value="">All</option>
+        <% options.programmes.forEach((value) => { %><option value="<%= value %>" <%= query.programme === String(value) ? 'selected' : '' %>><%= value %></option><% }) %>
+      </select>
+    </label>
+    <label>Year
+      <select name="graduationYear">
+        <option value="">All</option>
+        <% options.graduationYears.forEach((value) => { %><option value="<%= value %>" <%= query.graduationYear === String(value) ? 'selected' : '' %>><%= value %></option><% }) %>
+      </select>
+    </label>
+    <label>Industry
+      <select name="industrySector">
+        <option value="">All</option>
+        <% options.industrySectors.forEach((value) => { %><option value="<%= value %>" <%= query.industrySector === String(value) ? 'selected' : '' %>><%= value %></option><% }) %>
+      </select>
+    </label>
+    <button class="button" type="submit">Filter</button>
+  </form>
+
+  <% if (!alumni.length) { %>
+    <div class="empty-state">No alumni profiles match these filters yet.</div>
+  <% } %>
+
+  <section class="alumni-grid">
+    <% alumni.forEach((profile) => { %>
+      <article class="alumni-card">
+        <% if (profile.profileImagePath) { %>
+          <img class="avatar" src="<%= profile.profileImagePath %>" alt="<%= profile.fullName %>">
+        <% } else { %>
+          <div class="avatar placeholder"><%= (profile.fullName || 'A').slice(0,1) %></div>
+        <% } %>
+        <div>
+          <h2><%= profile.fullName || 'Unnamed alumni' %></h2>
+          <p class="muted"><%= profile.currentJobTitle || '-' %> <% if (profile.employer) { %> at <%= profile.employer %><% } %></p>
+          <p><%= profile.programme || '-' %> · <%= profile.graduationYear || '-' %> · <%= profile.industrySector || '-' %></p>
+          <div class="tag-row">
+            <% (profile.skills || []).slice(0, 6).forEach((skill) => { %><span class="tag"><%= skill %></span><% }) %>
+          </div>
+          <p class="small-text"><strong><%= (profile.documents || []).length %></strong> professional development item(s)</p>
+          <% if ((profile.documents || []).length) { %>
+            <div class="tag-row">
+              <% (profile.documents || []).slice(0, 4).forEach((item) => { %>
+                <span class="tag"><%= item.title %></span>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      </article>
+    <% }) %>
+  </section>
+</main>
+<%- include('../partials/footer') %>

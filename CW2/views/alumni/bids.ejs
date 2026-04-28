@@ -1,0 +1,86 @@
+<%- include('../partials/head', { title }) %>
+<%- include('../partials/nav') %>
+<main class="container narrow">
+  <%- include('../partials/flash') %>
+  <section class="card">
+    <p class="eyebrow">Blind bidding</p>
+    <h1>Bid for Alumni of the Day</h1>
+    <p class="muted">The current highest bid is hidden. You can place a bid or increase your existing active bid only.</p>
+
+    <dl class="profile-facts">
+      <div><dt>Cycle ends</dt><dd><%= new Date(status.cycle.endTime).toLocaleString() %></dd></div>
+      <div><dt>Featured date</dt><dd><%= status.cycle.featuredDate %></dd></div>
+      <div><dt>Wins this month</dt><dd><%= status.winsThisMonth %> / <%= status.monthlyLimit %></dd></div>
+      <div><dt>Your active bid</dt><dd><%= status.bid ? `£${Number(status.bid.bidAmount).toFixed(2)}` : 'No bid yet' %></dd></div>
+    </dl>
+
+    <% if (!status.hasCompletedProfileForBidding) { %>
+      <div class="flash error">Complete at least your full name and programme in <a href="/alumni/profile">My Profile</a> before placing a bid.</div>
+    <% } else if (status.canBid) { %>
+      <form action="/alumni/bids" method="post" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label><%= status.bid ? 'New higher bid amount' : 'Bid amount' %>
+          <input name="bidAmount" type="number" min="1" step="0.01" required>
+        </label>
+        <button class="button" type="submit"><%= status.bid ? 'Increase bid' : 'Place blind bid' %></button>
+      </form>
+    <% } else { %>
+      <div class="flash error">Monthly limit reached. You cannot bid again until next month.</div>
+    <% } %>
+  </section>
+
+  <section class="card">
+    <h2>My bids in the current cycle</h2>
+    <p class="muted">Only your own bid details are shown. Other alumni bids remain hidden.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Amount</th><th>Status</th><th>Placed/updated</th><th>Action</th></tr></thead>
+        <tbody>
+          <% if (!status.currentCycleBids || !status.currentCycleBids.length) { %>
+            <tr><td colspan="4" class="muted">You have not placed a bid in this active cycle yet.</td></tr>
+          <% } %>
+          <% (status.currentCycleBids || []).forEach((bid) => { %>
+            <tr>
+              <td>£<%= Number(bid.bidAmount).toFixed(2) %></td>
+              <td><span class="tag"><%= bid.status %></span></td>
+              <td><%= new Date(bid.updatedAt || bid.createdAt).toLocaleString() %></td>
+              <td>
+                <% if (bid.status === 'active') { %>
+                  <form action="/alumni/bids/<%= bid.id %>/cancel" method="post">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button class="danger small" type="submit" onclick="return confirm('Cancel this active bid?')">Cancel</button>
+                  </form>
+                <% } else { %>
+                  -
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Bid activity history</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cycle</th><th>Amount</th><th>Status</th><th>Updated</th></tr></thead>
+        <tbody>
+          <% if (!myBids || !myBids.length) { %>
+            <tr><td colspan="4" class="muted">No bid history yet.</td></tr>
+          <% } %>
+          <% (myBids || []).forEach((bid) => { %>
+            <tr>
+              <td><%= bid.cycle ? bid.cycle.featuredDate : '-' %></td>
+              <td>£<%= Number(bid.bidAmount).toFixed(2) %></td>
+              <td><span class="tag"><%= bid.status %></span></td>
+              <td><%= new Date(bid.updatedAt || bid.createdAt).toLocaleString() %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<%- include('../partials/footer') %>
