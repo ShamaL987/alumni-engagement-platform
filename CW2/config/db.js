@@ -1,10 +1,40 @@
 const { Sequelize } = require('sequelize');
 
-const database = process.env.DB_NAME || process.env.MYSQLDATABASE || 'alumni_cw2_mvc';
-const username = process.env.DB_USER || process.env.MYSQLUSER || 'root';
-const password = process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '';
-const host = process.env.DB_HOST || process.env.MYSQLHOST || '127.0.0.1';
-const port = Number(process.env.DB_PORT || process.env.MYSQLPORT || 3306);
+const database =
+    process.env.MYSQLDATABASE ||
+    process.env.MYSQL_DATABASE ||
+    process.env.DB_NAME ||
+    'alumni_cw2_mvc';
+
+const username =
+    process.env.MYSQLUSER ||
+    process.env.DB_USER ||
+    'root';
+
+const password =
+    process.env.MYSQLPASSWORD ||
+    process.env.MYSQL_ROOT_PASSWORD ||
+    process.env.DB_PASSWORD ||
+    '';
+
+const host =
+    process.env.MYSQLHOST ||
+    process.env.DB_HOST ||
+    '127.0.0.1';
+
+const port = Number(
+    process.env.MYSQLPORT ||
+    process.env.DB_PORT ||
+    3306
+);
+
+console.log('[db] config:', {
+    host,
+    port,
+    database,
+    username,
+    hasPassword: Boolean(password)
+});
 
 const sequelize = new Sequelize(database, username, password, {
     host,
