@@ -24,6 +24,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.set('trust proxy', 1);
 
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -80,7 +82,6 @@ app.use((req, res, next) => {
 });
 
 app.use('/', webRoutes);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
 app.use(errorHandler.notFound);

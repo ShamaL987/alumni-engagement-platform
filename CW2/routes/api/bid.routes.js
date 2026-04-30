@@ -161,7 +161,7 @@ router.delete('/:id', requireJwt, requireApiRole('alumni'), asyncHandler(bidCont
  *       403:
  *         description: Alumni or admin role required
  */
-router.post('/process-current-cycle', requireJwt, requireApiRole('alumni', 'admin'), asyncHandler(bidController.processCurrent));
+router.post('/process-current-cycle', requireJwt, requireApiRole('admin'), asyncHandler(bidController.processCurrent));
 
 /**
  * @swagger

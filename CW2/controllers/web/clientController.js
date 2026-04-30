@@ -1,6 +1,5 @@
 const analyticsService = require('../../services/analytics.service');
 const profileService = require('../../services/profile.service');
-const { SavedFilterPreset } = require('../../models');
 
 exports.dashboard = async (req, res) => {
   const analytics = await analyticsService.getAnalytics(req.query);

@@ -111,8 +111,8 @@ async function seedInitialData() {
       createdByUserId: admin.id
     });
     await apiKeyService.createApiKey({
-      name: 'test Alumni of Day',
-      clientType: 'test_app',
+      name: 'test Alumni',
+      clientType: 'custom',
       createdByUserId: admin.id
     });
   }
