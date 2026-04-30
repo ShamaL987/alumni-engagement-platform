@@ -45,7 +45,6 @@ router.delete('/alumni/documents/:id', requireRole('alumni'), asyncHandler(alumn
 router.get('/client/dashboard', requireRole('client', 'admin'), asyncHandler(clientController.dashboard));
 router.get('/client/alumni', requireRole('client', 'admin'), asyncHandler(clientController.alumni));
 router.get('/client/export.csv', requireRole('client', 'admin'), asyncHandler(clientController.exportCsv));
-router.post('/client/presets', requireRole('client', 'admin'), asyncHandler(clientController.savePreset));
 router.delete('/client/presets/:id', requireRole('client', 'admin'), asyncHandler(clientController.deletePreset));
 
 router.get('/admin/api-keys', requireRole('admin'), asyncHandler(adminController.apiKeys));
