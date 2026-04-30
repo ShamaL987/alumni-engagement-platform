@@ -1,58 +1,137 @@
 const bidService = require('../../services/bid.service');
 
-exports.current = async (req, res) => {
-  const status = await bidService.getCurrentBidStatus(req.user.id);
-  res.json({ success: true, data: status });
+const current = async (req, res, next) => {
+  try {
+    const status = await bidService.getCurrentBidStatus(req.user.id);
+    res.status(200).json({
+      success: true,
+      message: 'Current bid cycle status retrieved successfully.',
+      data: status
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.place = async (req, res) => {
-  const result = await bidService.createBid(req.user.id, req.body.bidAmount);
-  res.status(201).json({ success: true, data: result });
+const place = async (req, res, next) => {
+  try {
+    const result = await bidService.createBid(req.user.id, req.body.bidAmount);
+    res.status(201).json({
+      success: true,
+      message: 'Bid placed successfully.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.status = async (req, res) => {
-  const status = await bidService.getCurrentBidStatus(req.user.id);
-  let feedback = 'not_placed';
-  if (status.bid) feedback = 'placed';
-  res.json({
-    success: true,
-    data: {
-      feedback,
-      bid: status.bid,
-      cycle: status.cycle,
-      winsThisMonth: status.winsThisMonth,
-      monthlyLimit: status.monthlyLimit,
-      canBid: status.canBid
-    }
-  });
+const status = async (req, res, next) => {
+  try {
+    const result = await bidService.getCurrentBidStatus(req.user.id);
+    res.status(200).json({
+      success: true,
+      message: 'Current bid status retrieved successfully.',
+      data: {
+        feedback: result.bid ? 'placed' : 'not_placed',
+        bid: result.bid,
+        cycle: result.cycle,
+        winsThisMonth: result.winsThisMonth,
+        monthlyLimit: result.monthlyLimit,
+        canBid: result.canBid
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.update = async (req, res) => {
-  const result = await bidService.updateBid(req.user.id, req.params.id, req.body.bidAmount);
-  res.json({ success: true, data: result });
+const update = async (req, res, next) => {
+  try {
+    const result = await bidService.updateBid(req.user.id, req.params.id, req.body.bidAmount);
+    res.status(200).json({
+      success: true,
+      message: 'Bid updated successfully.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.mine = async (req, res) => {
-  const bids = await bidService.listMyBids(req.user.id);
-  res.json({ success: true, data: bids });
+const mine = async (req, res, next) => {
+  try {
+    const bids = await bidService.listMyBids(req.user.id);
+    res.status(200).json({
+      success: true,
+      message: 'My bids retrieved successfully.',
+      data: bids
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.cancel = async (req, res) => {
-  const result = await bidService.cancelBid(req.user.id, req.params.id);
-  res.json({ success: true, data: result });
+const cancel = async (req, res, next) => {
+  try {
+    const result = await bidService.cancelBid(req.user.id, req.params.id);
+    res.status(200).json({
+      success: true,
+      message: 'Bid cancelled successfully.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.processCurrent = async (req, res) => {
-  const cycle = await bidService.processCurrentCycle();
-  res.json({ success: true, data: cycle });
+const processCurrent = async (req, res, next) => {
+  try {
+    const cycle = await bidService.processCurrentCycle();
+    res.status(200).json({
+      success: true,
+      message: 'Current cycle processed successfully.',
+      data: cycle
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.history = async (req, res) => {
-  const cycles = await bidService.getCycleHistory();
-  res.json({ success: true, data: cycles });
+const history = async (req, res, next) => {
+  try {
+    const cycles = await bidService.getCycleHistory();
+    res.status(200).json({
+      success: true,
+      message: 'Cycle history retrieved successfully.',
+      data: cycles
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.cycle = async (req, res) => {
-  const cycle = await bidService.getCycleById(req.params.id);
-  res.json({ success: true, data: cycle });
+const cycle = async (req, res, next) => {
+  try {
+    const result = await bidService.getCycleById(req.params.id);
+    res.status(200).json({
+      success: true,
+      message: 'Cycle details retrieved successfully.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  current,
+  place,
+  status,
+  update,
+  mine,
+  cancel,
+  processCurrent,
+  history,
+  cycle
 };

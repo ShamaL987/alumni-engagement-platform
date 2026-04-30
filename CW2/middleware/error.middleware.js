@@ -4,27 +4,45 @@ function notFound(req, res, next) {
   next(error);
 }
 
+function isApiRequest(req) {
+  return req.originalUrl.startsWith('/api');
+}
+
 function handle(error, req, res, next) {
   const status = error.statusCode || error.status || 500;
 
+  const message = status >= 500
+      ? 'Internal server error'
+      : error.message || 'Something went wrong';
+
+  res.locals.errorMessage = message;
+
   if (error.code === 'EBADCSRFTOKEN') {
     req.flash?.('error', 'Security token expired. Please try again.');
-    return res.redirect('back');
+
+    const redirectBack = req.get('Referrer') || '/';
+    return res.redirect(redirectBack);
   }
 
-  if (req.isApiRequest || req.originalUrl.startsWith('/api')) {
+  if (process.env.NODE_ENV === 'development' && status >= 500) {
+    console.error(error.stack || error);
+  }
+
+  if (isApiRequest(req)) {
     return res.status(status).json({
       success: false,
-      message: error.message || 'Internal Server Error'
+      message
     });
   }
 
-  console.error(error);
   return res.status(status).render('error', {
     title: 'Error',
     status,
-    message: error.message || 'Something went wrong'
+    message
   });
 }
 
-module.exports = { notFound, handle };
+module.exports = {
+  notFound,
+  handle
+};

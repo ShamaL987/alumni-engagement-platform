@@ -1,20 +1,51 @@
-const { RequestLog } = require('../models');
+function formatTimestamp(date = new Date()) {
+  return date.toISOString().replace('T', ' ').replace('Z', '');
+}
 
-module.exports = function requestLogger(req, res, next) {
+function getRequestType(req) {
+  if (req.originalUrl.startsWith('/api')) {
+    return 'API';
+  }
+
+  return 'WEB';
+}
+
+function getOutcome(statusCode) {
+  if (statusCode >= 500) {
+    return 'ERROR';
+  }
+
+  if (statusCode >= 400) {
+    return 'FAIL';
+  }
+
+  return 'SUCCESS';
+}
+
+function requestLogger(req, res, next) {
+  const startTime = process.hrtime.bigint();
+
   res.on('finish', () => {
-    if (req.path.startsWith('/public') || req.path.startsWith('/css') || req.path.startsWith('/js') || req.path.startsWith('/uploads')) {
-      return;
-    }
+    const endTime = process.hrtime.bigint();
+    const durationMs = Number(endTime - startTime) / 1_000_000;
 
-    RequestLog.create({
-      userId: req.user?.id || null,
-      endpoint: req.originalUrl,
-      method: req.method,
-      statusCode: res.statusCode,
-      tokenSubject: req.apiKey ? `api-key:${req.apiKey.keyPrefix}` : (req.user ? `user:${req.user.id}` : null),
-      ipAddress: req.ip
-    }).catch(() => {});
+    const timestamp = formatTimestamp();
+    const requestType = getRequestType(req);
+    const method = req.method;
+    const path = req.originalUrl;
+    const statusCode = res.statusCode;
+    const outcome = getOutcome(statusCode);
+
+    const errorMessage = res.locals.errorMessage
+        ? ` | ${res.locals.errorMessage}`
+        : '';
+
+    console.log(
+        `[${timestamp}] ${requestType} ${method} ${path} ${statusCode} ${outcome} ${durationMs.toFixed(1)}ms${errorMessage}`
+    );
   });
 
   next();
-};
+}
+
+module.exports = requestLogger;

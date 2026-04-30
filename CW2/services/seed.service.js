@@ -54,25 +54,25 @@ async function createDemoAlumni(email, password, profileData, developmentItems =
 
 async function seedInitialData() {
   const { user: admin } = await createUserIfMissing(
-    process.env.SEED_ADMIN_EMAIL || 'admin@university.ac.uk',
+    process.env.SEED_ADMIN_EMAIL || 'admin@westminster.ac.uk',
     process.env.SEED_ADMIN_PASSWORD || 'Admin@12345',
     'admin'
   );
 
   await createUserIfMissing(
-    process.env.SEED_CLIENT_EMAIL || 'client@university.ac.uk',
+    process.env.SEED_CLIENT_EMAIL || 'client@westminster.ac.uk',
     process.env.SEED_CLIENT_PASSWORD || 'Client@12345',
     'client'
   );
 
   await createUserIfMissing(
-    process.env.SEED_ALUMNI_EMAIL || 'alumni@university.ac.uk',
+    process.env.SEED_ALUMNI_EMAIL || 'alumni@westminster.ac.uk',
     process.env.SEED_ALUMNI_PASSWORD || 'Alumni@12345',
     'alumni'
   );
 
   if (String(process.env.SEED_DEMO_DATA || 'false').toLowerCase() === 'true') {
-    await createDemoAlumni('maya.data@university.ac.uk', 'Alumni@12345', {
+    await createDemoAlumni('maya.data@westminster.ac.uk', 'Alumni@12345', {
       fullName: 'Maya Fernando',
       programme: 'Business Management',
       graduationYear: 2022,
@@ -87,7 +87,7 @@ async function seedInitialData() {
       { documentType: 'short_course', title: 'Python for Data Analysis', issuer: 'Coursera', issuedAt: '2024-05-10' }
     ]);
 
-    await createDemoAlumni('sam.cloud@university.ac.uk', 'Alumni@12345', {
+    await createDemoAlumni('sam.cloud@westminster.ac.uk', 'Alumni@12345', {
       fullName: 'Sam Perera',
       programme: 'Computer Science',
       graduationYear: 2021,
@@ -105,20 +105,16 @@ async function seedInitialData() {
 
   const existingKeys = await ApiKey.count();
   if (!existingKeys) {
-    const analytics = await apiKeyService.createApiKey({
+    await apiKeyService.createApiKey({
       name: 'University Analytics Dashboard',
       clientType: 'analytics_dashboard',
       createdByUserId: admin.id
     });
-    const ar = await apiKeyService.createApiKey({
-      name: 'Mobile AR Alumni of Day',
-      clientType: 'mobile_ar_app',
+    await apiKeyService.createApiKey({
+      name: 'test Alumni of Day',
+      clientType: 'test_app',
       createdByUserId: admin.id
     });
-
-    console.log('[seed] API keys created. Copy them now; only hashes are stored.');
-    console.log('Analytics key:', analytics.secret);
-    console.log('Mobile AR key:', ar.secret);
   }
 }
 
