@@ -18,20 +18,43 @@ const commonOptions = {
 
 let sequelize;
 
-const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+if (process.env.MYSQL_URL) {
+    console.log('[db] using MYSQL_URL connection');
 
-if (databaseUrl) {
-    console.log('[db] using database URL connection');
-
-    sequelize = new Sequelize(databaseUrl, commonOptions);
+    sequelize = new Sequelize(process.env.MYSQL_URL, commonOptions);
 } else {
-    const database = process.env.DB_NAME || 'alumni_cw2_mvc';
-    const username = process.env.DB_USER || 'root';
-    const password = process.env.DB_PASSWORD || '';
-    const host = process.env.DB_HOST || '127.0.0.1';
-    const port = Number(process.env.DB_PORT || 3306);
+    const isRailwayMysql = Boolean(
+        process.env.MYSQLHOST &&
+        process.env.MYSQLPORT &&
+        process.env.MYSQLUSER &&
+        process.env.MYSQLPASSWORD &&
+        process.env.MYSQLDATABASE
+    );
 
-    console.log('[db] using local DB config:', {
+    const database = isRailwayMysql
+        ? process.env.MYSQLDATABASE
+        : process.env.DB_NAME || 'alumni_cw2_mvc';
+
+    const username = isRailwayMysql
+        ? process.env.MYSQLUSER
+        : process.env.DB_USER || 'root';
+
+    const password = isRailwayMysql
+        ? process.env.MYSQLPASSWORD
+        : process.env.DB_PASSWORD || '';
+
+    const host = isRailwayMysql
+        ? process.env.MYSQLHOST
+        : process.env.DB_HOST || '127.0.0.1';
+
+    const port = Number(
+        isRailwayMysql
+            ? process.env.MYSQLPORT
+            : process.env.DB_PORT || 3306
+    );
+
+    console.log('[db] config:', {
+        source: isRailwayMysql ? 'railway-mysql' : 'local-db',
         host,
         port,
         database,
