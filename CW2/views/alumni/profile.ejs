@@ -90,10 +90,6 @@
       <input type="checkbox" name="isPublic" value="true" <%= profile?.isPublic !== false ? 'checked' : '' %>>
       Show this profile in client alumni lists
     </label>
-
-    <div class="action-row span-2">
-      <button class="button" type="submit">Save profile</button>
-    </div>
     <label class="checkbox">
       <input type="hidden" name="attendedUniversitySession" value="false">
       <input
@@ -104,6 +100,9 @@
       >
       I have attended a university alumni/session this month
     </label>
+    <div class="action-row span-2">
+      <button class="button" type="submit">Save profile</button>
+    </div>
   </form>
 
   <section id="development" class="card">
