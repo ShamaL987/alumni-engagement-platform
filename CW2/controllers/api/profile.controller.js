@@ -1,36 +1,100 @@
 const profileService = require('../../services/profile.service');
 
-exports.me = async (req, res) => {
-  const profile = await profileService.getProfileByUserId(req.user.id);
-  res.json({ success: true, data: profile });
+const me = async (req, res, next) => {
+  try {
+    const profile = await profileService.getProfileByUserId(req.user.id);
+    res.status(200).json({
+      success: true,
+      message: 'Profile retrieved successfully.',
+      data: profile
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.updateMe = async (req, res) => {
-  const profile = await profileService.updateMyProfile(req.user.id, req.body, req.file);
-  res.json({ success: true, data: profile });
+const updateMe = async (req, res, next) => {
+  try {
+    const profile = await profileService.updateMyProfile(req.user.id, req.body, req.file);
+    res.status(200).json({
+      success: true,
+      message: 'Profile saved successfully.',
+      data: profile
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.deleteMe = async (req, res) => {
-  await profileService.deleteMyProfile(req.user.id);
-  res.json({ success: true, message: 'Profile deleted successfully' });
+const deleteMe = async (req, res, next) => {
+  try {
+    await profileService.deleteMyProfile(req.user.id);
+    res.status(200).json({
+      success: true,
+      message: 'Profile deleted successfully.'
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.addDocument = async (req, res) => {
-  const document = await profileService.addDocument(req.user.id, req.body, req.file);
-  res.status(201).json({ success: true, data: document });
+const addDocument = async (req, res, next) => {
+  try {
+    const document = await profileService.addDocument(req.user.id, req.body, req.file);
+    res.status(201).json({
+      success: true,
+      message: 'Professional development item added successfully.',
+      data: document
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.updateDocument = async (req, res) => {
-  const document = await profileService.updateDocument(req.user.id, req.params.id, req.body, req.file);
-  res.json({ success: true, data: document });
+const updateDocument = async (req, res, next) => {
+  try {
+    const document = await profileService.updateDocument(req.user.id, req.params.id, req.body, req.file);
+    res.status(200).json({
+      success: true,
+      message: 'Professional development item updated successfully.',
+      data: document
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.deleteDocument = async (req, res) => {
-  await profileService.deleteDocument(req.user.id, req.params.id);
-  res.json({ success: true, message: 'Professional development item deleted successfully' });
+const deleteDocument = async (req, res, next) => {
+  try {
+    await profileService.deleteDocument(req.user.id, req.params.id);
+    res.status(200).json({
+      success: true,
+      message: 'Professional development item deleted successfully.'
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.listAlumni = async (req, res) => {
-  const alumni = await profileService.listAlumni(req.query);
-  res.json({ success: true, data: alumni });
+const listAlumni = async (req, res, next) => {
+  try {
+    const alumni = await profileService.listAlumni(req.query);
+    res.status(200).json({
+      success: true,
+      message: 'Alumni profiles retrieved successfully.',
+      data: alumni
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  me,
+  updateMe,
+  deleteMe,
+  addDocument,
+  updateDocument,
+  deleteDocument,
+  listAlumni
 };

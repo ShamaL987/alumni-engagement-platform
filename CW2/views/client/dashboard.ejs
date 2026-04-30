@@ -21,7 +21,6 @@
     <div class="action-row">
       <a class="button secondary" href="/client/alumni?<%= new URLSearchParams(query).toString() %>">View Alumni</a>
       <a class="button secondary" href="/client/export.csv?<%= new URLSearchParams(query).toString() %>">Export CSV</a>
-      <button class="button secondary" onclick="window.print()">Print / PDF</button>
     </div>
   </section>
 
@@ -89,29 +88,6 @@
         <% }) %>
       </div>
     <% } %>
-  </section>
-
-  <section class="card">
-    <h2>Save Filter Preset</h2>
-    <form method="post" action="/client/presets" class="filters">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="programme" value="<%= query.programme || '' %>">
-      <input type="hidden" name="graduationYear" value="<%= query.graduationYear || '' %>">
-      <input type="hidden" name="industrySector" value="<%= query.industrySector || '' %>">
-      <label>Preset name
-        <input name="name" required placeholder="CS 2025 cloud skills">
-      </label>
-      <button class="button" type="submit">Save preset</button>
-    </form>
-    <div class="preset-list">
-      <% presets.forEach((preset) => { %>
-        <form method="post" action="/client/presets/<%= preset.id %>?_method=DELETE" class="preset">
-          <a href="/client/dashboard?<%= new URLSearchParams(preset.filters).toString() %>"><%= preset.name %></a>
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button class="link-button danger-text" type="submit">Delete</button>
-        </form>
-      <% }) %>
-    </div>
   </section>
 </main>
 <script src="/js/charts.js"></script>

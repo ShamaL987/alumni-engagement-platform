@@ -1,5 +1,24 @@
 <%- include('../partials/head', { title }) %>
 <%- include('../partials/nav') %>
+<%
+const parsePermissions = (permissions) => {
+  if (Array.isArray(permissions)) {
+    return permissions;
+  }
+
+  if (typeof permissions === 'string') {
+    try {
+      const parsed = JSON.parse(permissions);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return permissions.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+  }
+
+  return [];
+};
+%>
+
 <main class="container">
   <%- include('../partials/flash') %>
   <section class="page-heading">
@@ -53,7 +72,7 @@
             <td><%= key.name %></td>
             <td><%= key.clientType %></td>
             <td><code><%= key.keyPrefix %></code></td>
-            <td><%= (key.permissions || []).join(', ') %></td>
+            <td><%= parsePermissions(key.permissions).join(', ') || '-' %></td>
             <td><%= key.isActive ? 'Active' : 'Revoked' %></td>
             <td><%= key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : '-' %></td>
             <td>

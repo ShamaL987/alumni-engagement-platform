@@ -23,7 +23,8 @@ const Profile = sequelize.define('profile', {
   shortCourses: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
   employmentHistory: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
   monthlyEventBonusCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
-  isPublic: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true }
+  isPublic: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  attendedUniversitySession: {type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'attended_university_session'},
 }, {
   indexes: [
     { unique: true, fields: ['user_id'] },

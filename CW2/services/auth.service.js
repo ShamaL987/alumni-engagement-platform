@@ -30,14 +30,16 @@ async function issueToken(userId, type) {
 }
 
 async function register({ email, password, role = 'alumni' }) {
+
   const normalizedEmail = String(email || '').trim().toLowerCase();
 
-  if (!isUniversityEmail(normalizedEmail)) {
-    const error = new Error('Registration requires an approved university email domain.');
-    error.statusCode = 400;
-    throw error;
+  if (role === 'alumni') {
+    if (!isUniversityEmail(normalizedEmail)) {
+      const error = new Error('Registration requires an approved university email domain.');
+      error.statusCode = 400;
+      throw error;
+    }
   }
-
   if (!isStrongPassword(password)) {
     const error = new Error('Password must be at least 8 characters and include uppercase, lowercase, number and symbol.');
     error.statusCode = 400;

@@ -17,7 +17,7 @@ exports.login = async (req, res) => {
   const result = await authService.login(req.body);
   req.session.userId = result.user.id;
   req.flash('success', 'Logged in successfully.');
-  res.redirect('/dashboard');
+  res.redirect('/');
 };
 
 exports.logout = (req, res) => {

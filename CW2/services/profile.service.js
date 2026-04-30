@@ -121,7 +121,8 @@ function mapProfilePayload(payload = {}) {
     shortCourses: normalized.shortCourses,
     employmentHistory: normalized.employmentHistory,
     monthlyEventBonusCount: Number.isFinite(monthlyBonus) && monthlyBonus > 0 ? Math.min(monthlyBonus, 12) : 0,
-    isPublic: booleanField(normalized.isPublic, true)
+    isPublic: booleanField(normalized.isPublic, true),
+    attendedUniversitySession: booleanField(normalized.attendedUniversitySession, false),
   };
 }
 
@@ -186,7 +187,8 @@ async function clearMyProfile(userId) {
     shortCourses: [],
     employmentHistory: [],
     monthlyEventBonusCount: 0,
-    isPublic: true
+    isPublic: true,
+    attendedUniversitySession: false,
   });
 
   return getProfileByUserId(userId);

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "check": "node scripts/check-syntax.js"
+    "check": "node scripts/check-syntax.js",
+    "test:routes": "jest tests/test_routes.test.js --runInBand"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -26,7 +27,9 @@
     "mysql2": "^3.11.5",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
-    "sequelize": "^6.37.5"
+    "sequelize": "^6.37.5",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"

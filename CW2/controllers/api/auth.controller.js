@@ -1,46 +1,132 @@
 const authService = require('../../services/auth.service');
 const { User, RequestLog } = require('../../models');
 
-exports.register = async (req, res) => {
-  const result = await authService.register(req.body);
-  res.status(201).json({ success: true, data: result });
+const register = async (req, res, next) => {
+  console.log(req.body);
+  try {
+    const result = await authService.register(req.body);
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful. Please verify your email.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.verifyEmail = async (req, res) => {
-  const user = await authService.verifyEmail(req.body.token || req.query.token);
-  res.json({ success: true, data: user });
+const verifyEmail = async (req, res, next) => {
+  try {
+    const token = req.query.token || req.body.token;
+    const result = await authService.verifyEmail(token);
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.login = async (req, res) => {
-  const result = await authService.login(req.body);
-  res.json({ success: true, data: result });
+const login = async (req, res, next) => {
+  try {
+    const result = await authService.login(req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Login successful.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.verifyToken = async (req, res) => {
-  res.json({ success: true, data: authService.publicUser(req.user) });
+const verifyToken = async (req, res, next) => {
+  try {
+    const result = authService.publicUser
+      ? authService.publicUser(req.user)
+      : await authService.verifyCurrentToken(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Token is valid.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.logout = async (req, res) => {
-  const user = await User.findByPk(req.user.id);
-  if (user) await user.update({ tokenVersion: user.tokenVersion + 1 });
-  res.json({ success: true, message: 'Logged out successfully' });
+const forgotPassword = async (req, res, next) => {
+  try {
+    const result = authService.requestPasswordReset
+      ? await authService.requestPasswordReset(req.body.email)
+      : await authService.forgotPassword(req.body.email);
+
+    res.status(200).json({
+      success: true,
+      message: 'If the email exists, a reset token has been generated.',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.usage = async (req, res) => {
-  const logs = await RequestLog.findAll({
-    where: { userId: req.user.id },
-    order: [['createdAt', 'DESC']],
-    limit: 50
-  });
-  res.json({ success: true, data: logs });
+const resetPassword = async (req, res, next) => {
+  try {
+    await authService.resetPassword(req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Password has been reset successfully.'
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.forgotPassword = async (req, res) => {
-  const result = await authService.requestPasswordReset(req.body.email);
-  res.json({ success: true, data: result });
+const usage = async (req, res, next) => {
+  try {
+    const logs = await RequestLog.findAll({
+      where: { userId: req.user.id },
+      order: [['createdAt', 'DESC']],
+      limit: 50
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Authenticated request usage retrieved successfully.',
+      data: logs
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-exports.resetPassword = async (req, res) => {
-  await authService.resetPassword(req.body);
-  res.json({ success: true, message: 'Password reset successful' });
+const logout = async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (user) {
+      await user.update({ tokenVersion: user.tokenVersion + 1 });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Logout successful.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  register,
+  verifyEmail,
+  login,
+  verifyToken,
+  forgotPassword,
+  resetPassword,
+  usage,
+  logout
 };
