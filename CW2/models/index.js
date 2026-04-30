@@ -8,7 +8,6 @@ const BidHistory = require('./bidHistory.model');
 const ApiKey = require('./apiKey.model');
 const ApiUsageLog = require('./apiUsageLog.model');
 const RequestLog = require('./requestLog.model');
-const SavedFilterPreset = require('./savedFilterPreset.model');
 
 User.hasMany(AuthToken, { foreignKey: 'userId', as: 'authTokens', onDelete: 'CASCADE' });
 AuthToken.belongsTo(User, { foreignKey: 'userId', as: 'user' });
@@ -47,9 +46,6 @@ ApiUsageLog.belongsTo(ApiKey, { foreignKey: 'apiKeyId', as: 'apiKey' });
 User.hasMany(ApiUsageLog, { foreignKey: 'userId', as: 'apiUsageLogs', onDelete: 'SET NULL' });
 ApiUsageLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
-User.hasMany(SavedFilterPreset, { foreignKey: 'userId', as: 'savedFilterPresets', onDelete: 'CASCADE' });
-SavedFilterPreset.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-
 module.exports = {
   User,
   AuthToken,
@@ -61,5 +57,4 @@ module.exports = {
   ApiKey,
   ApiUsageLog,
   RequestLog,
-  SavedFilterPreset
 };

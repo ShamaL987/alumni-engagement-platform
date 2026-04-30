@@ -33,12 +33,18 @@ const status = async (req, res, next) => {
       success: true,
       message: 'Current bid status retrieved successfully.',
       data: {
-        feedback: result.bid ? 'placed' : 'not_placed',
-        bid: result.bid,
-        cycle: result.cycle,
-        winsThisMonth: result.winsThisMonth,
-        monthlyLimit: result.monthlyLimit,
-        canBid: result.canBid
+        feedback: status.bidFeedback,
+        bid: status.bid,
+        cycle: status.cycle,
+        winsThisMonth: status.winsThisMonth,
+        monthlyWinLimit: status.monthlyWinLimit,
+        remainingWins: status.remainingWins,
+        bidAttemptsThisMonth: status.bidAttemptsThisMonth,
+        monthlyBidLimit: status.monthlyBidLimit,
+        remainingBidAttempts: status.remainingBidAttempts,
+        canPlaceNewBid: status.canPlaceNewBid,
+        canIncreaseBid: status.canIncreaseBid,
+        attendedUniversitySession: status.attendedUniversitySession
       }
     });
   } catch (error) {

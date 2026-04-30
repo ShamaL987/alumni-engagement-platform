@@ -94,6 +94,16 @@
     <div class="action-row span-2">
       <button class="button" type="submit">Save profile</button>
     </div>
+    <label class="checkbox">
+      <input type="hidden" name="attendedUniversitySession" value="false">
+      <input
+              type="checkbox"
+              name="attendedUniversitySession"
+              value="true"
+              <%= profile?.attendedUniversitySession ? 'checked' : '' %>
+      >
+      I have attended a university alumni/session this month
+    </label>
   </form>
 
   <section id="development" class="card">
