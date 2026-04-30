@@ -6,7 +6,7 @@ ENV NODE_ENV=production
 
 COPY CW2/package*.json ./
 
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 COPY CW2/ .
 
