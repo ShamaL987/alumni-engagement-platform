@@ -13,9 +13,6 @@ const commonOptions = {
         min: 0,
         acquire: 30000,
         idle: 10000
-    },
-    dialectOptions: {
-        ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
     }
 };
 
@@ -26,12 +23,7 @@ const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
 if (databaseUrl) {
     console.log('[db] using database URL connection');
 
-    sequelize = new Sequelize(databaseUrl, {
-        ...commonOptions,
-        dialectOptions: {
-            ssl: { rejectUnauthorized: false }
-        }
-    });
+    sequelize = new Sequelize(databaseUrl, commonOptions);
 } else {
     const database = process.env.DB_NAME || 'alumni_cw2_mvc';
     const username = process.env.DB_USER || 'root';
@@ -53,12 +45,5 @@ if (databaseUrl) {
         port
     });
 }
-
-sequelize.authenticate()
-    .then(() => console.log('[db] connection established successfully'))
-    .catch(err => {
-        console.error('[db] unable to connect to the database:', err.message);
-        process.exit(1);
-    });
 
 module.exports = sequelize;
