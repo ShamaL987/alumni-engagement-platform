@@ -1,0 +1,14 @@
+.git
+.gitignore
+.idea
+node_modules
+CW1
+CW2/.env
+CW2/.env.dev
+CW2/.env.development
+CW2/.env.production
+CW2/tests
+CW2/coverage
+CW2/uploads/*
+*.zip
+npm-debug.log
