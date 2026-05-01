@@ -12,6 +12,14 @@ function getFromAddress() {
   return process.env.MAIL_FROM || 'Alumni Influencers <onboarding@resend.dev>';
 }
 
+function isTestMode() {
+  return String(process.env.MAIL_TEST_MODE || 'false').toLowerCase() === 'true';
+}
+
+function getTestRecipient() {
+  return process.env.MAIL_TEST_TO || process.env.TEST_EMAIL || '';
+}
+
 function createResendClient() {
   if (!process.env.RESEND_API_KEY) {
     return null;
@@ -20,12 +28,69 @@ function createResendClient() {
   return new Resend(process.env.RESEND_API_KEY);
 }
 
+function formatRecipient(to) {
+  if (Array.isArray(to)) {
+    return to.join(', ');
+  }
+
+  return String(to || '');
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+}
+
+function resolveEmailPayload({ to, subject, text, html }) {
+  if (!isTestMode()) {
+    return {
+      finalTo: to,
+      finalSubject: subject,
+      finalText: text,
+      finalHtml: html
+    };
+  }
+
+  const testRecipient = getTestRecipient();
+
+  if (!testRecipient) {
+    throw new Error('MAIL_TEST_TO is missing while MAIL_TEST_MODE is enabled');
+  }
+
+  const originalRecipient = formatRecipient(to);
+
+  return {
+    finalTo: testRecipient,
+    finalSubject: `[TEST] ${subject}`,
+    finalText: [
+      'Test email redirected.',
+      `Original recipient: ${originalRecipient}`,
+      '',
+      text || html || ''
+    ].join('\n'),
+    finalHtml: `
+      <p><strong>Test email redirected.</strong></p>
+      <p>Original recipient: ${escapeHtml(originalRecipient)}</p>
+      <hr>
+      ${html || `<pre>${escapeHtml(text)}</pre>`}
+    `
+  };
+}
+
 function logConsoleEmail({ to, subject, text, html }) {
+  const payload = resolveEmailPayload({ to, subject, text, html });
+
   console.log('\n[console-mail]');
-  console.log('To:', to);
-  console.log('Subject:', subject);
-  console.log(text || html);
+  console.log('To:', payload.finalTo);
+  console.log('Subject:', payload.finalSubject);
+  console.log(payload.finalText || payload.finalHtml);
   console.log('[/console-mail]\n');
+
+  return payload;
 }
 
 async function verifyTransport() {
@@ -37,10 +102,16 @@ async function verifyTransport() {
     throw new Error('RESEND_API_KEY is missing');
   }
 
+  if (isTestMode() && !getTestRecipient()) {
+    throw new Error('MAIL_TEST_TO is missing while MAIL_TEST_MODE is enabled');
+  }
+
   return true;
 }
 
 async function sendEmail({ to, subject, text, html }) {
+  const payload = resolveEmailPayload({ to, subject, text, html });
+
   if (getMailMode() !== 'resend') {
     logConsoleEmail({ to, subject, text, html });
     return { console: true };
@@ -54,10 +125,10 @@ async function sendEmail({ to, subject, text, html }) {
 
   const { data, error } = await resend.emails.send({
     from: getFromAddress(),
-    to,
-    subject,
-    text,
-    html
+    to: payload.finalTo,
+    subject: payload.finalSubject,
+    text: payload.finalText,
+    html: payload.finalHtml
   });
 
   if (error) {
