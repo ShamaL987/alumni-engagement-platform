@@ -27,6 +27,7 @@
     "mysql2": "^3.11.5",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.16",
+    "resend": "^6.12.2",
     "sequelize": "^6.37.5",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
