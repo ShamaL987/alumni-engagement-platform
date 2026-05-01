@@ -9,3 +9,4 @@ CW2/coverage
 CW2/uploads/*
 *.zip
 npm-debug.log
+*.pdf
